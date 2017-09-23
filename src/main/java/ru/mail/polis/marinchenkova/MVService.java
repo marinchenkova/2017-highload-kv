@@ -4,8 +4,11 @@ import com.sun.net.httpserver.HttpServer;
 import ru.mail.polis.KVService;
 
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,6 +27,7 @@ public class MVService implements KVService {
 
     private final int port = 0;
     private HttpServer server;
+    private DataBase dataBase = new DataBase();
 
 
     public MVService(int port){
@@ -32,37 +36,66 @@ public class MVService implements KVService {
         } catch (IOException e) {
             e.printStackTrace();
         }
+
         server.createContext("/", httpExchange -> {
             String method = httpExchange.getRequestMethod();
-            switch (method) {
-                case GET:
-                    String response = idFromURI(httpExchange.getRequestURI());
-                    if(response.equals(ONLINE)) {
-                        httpExchange.sendResponseHeaders(200, response.length());
-                        httpExchange.getResponseBody().write(response.getBytes());
-                    } else {
-                        httpExchange.sendResponseHeaders(404, 0);
+
+            try {
+                String response = idFromURI(httpExchange.getRequestURI());
+                if(response.equals("")) httpExchange.sendResponseHeaders(400, 0);
+
+                else {
+                    switch (method) {
+                        case GET:
+                            if (response.equals(ONLINE)) {
+                                httpExchange.sendResponseHeaders(200, response.length());
+                                httpExchange.getResponseBody().write(response.getBytes());
+                            } else {
+                                try {
+                                    Value val = dataBase.get(response);
+                                    httpExchange.sendResponseHeaders(200, val.toString().length());
+                                    httpExchange.getResponseBody().write(val.getBytes());
+                                } catch (NoSuchElementException e) {
+                                    httpExchange.sendResponseHeaders(404, 0);
+                                }
+                            }
+                            break;
+
+                        case PUT:
+                            //TODO case PUT
+                            int available = httpExchange.getRequestBody().available();
+                            byte[] data = new byte[available];
+
+                            Reader in = new InputStreamReader(httpExchange.getRequestBody());
+
+                            int read = httpExchange.getRequestBody().read(data);
+                            while(read > 0) read = in.read();
+
+                            dataBase.put(response, new Value(data));
+
+                            httpExchange.sendResponseHeaders(201, read);
+                            break;
+
+                        case DELETE:
+                            dataBase.delete(response);
+                            httpExchange.sendResponseHeaders(202, 0);
+                            break;
                     }
-                    break;
+                    httpExchange.close();
+                }
 
-                case PUT:
-                    httpExchange.sendResponseHeaders(201, 0);
-                    break;
-
-                case DELETE:
-                    httpExchange.sendResponseHeaders(202, 0);
-                    break;
+            } catch (IllegalArgumentException e) {
+                e.printStackTrace();
             }
-            httpExchange.close();
         });
     }
 
     /**
      * Анализ URI.
      * @param uri
-     * @return {@link String} ONLINE, если запрос /v0/status или /v0/status и любые символы далее,
-     * id, если запрос /v0/entity?id=
-     * в остальных случая -  исключение
+     * @return {@link String} ONLINE, если запрос /v0/status или /v0/status и любые символы далее;
+     * id, если запрос /v0/entity?id=;
+     * в остальных случая -  исключение.
      * @throws IllegalArgumentException, если запрос не удовлетворяет шаблонам /v0/status и /v0/entity?id=
      */
     private String idFromURI(URI uri) throws IllegalArgumentException {

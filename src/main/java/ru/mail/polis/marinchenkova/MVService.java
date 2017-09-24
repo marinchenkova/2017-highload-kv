@@ -19,10 +19,16 @@ public class MVService implements KVService {
 
     private final static String PATTERN_ENTITY = Pattern.quote("/v0/entity?id=");
     private final static String PATTERN_STATUS = Pattern.quote("/v0/status");
+
+    private final static String ENTITY = "/v0/entity?id=";
+    private final static String STATUS = "/v0/status";
+
+
     private final static String ONLINE = "ONLINE";
     private final static String GET = "GET";
     private final static String PUT = "PUT";
     private final static String DELETE = "DELETE";
+    private final static String INCORRECT_REQUEST = "INCORRECT_REQUEST";
 
 
     private final int port = 0;
@@ -38,13 +44,12 @@ public class MVService implements KVService {
         }
 
         server.createContext("/", httpExchange -> {
-            String method = httpExchange.getRequestMethod();
+            String response = idFromURI(httpExchange.getRequestURI().toString());
 
             try {
-                String response = idFromURI(httpExchange.getRequestURI());
-                if(response.equals("")) httpExchange.sendResponseHeaders(400, 0);
-
+                if (response.equals("")) httpExchange.sendResponseHeaders(400, 0);
                 else {
+                    String method = httpExchange.getRequestMethod();
                     switch (method) {
                         case GET:
                             if (response.equals(ONLINE)) {
@@ -69,7 +74,7 @@ public class MVService implements KVService {
                             Reader in = new InputStreamReader(httpExchange.getRequestBody());
 
                             int read = httpExchange.getRequestBody().read(data);
-                            while(read > 0) read = in.read();
+                            while (read > 0) read = in.read();
 
                             dataBase.put(response, new Value(data));
 
@@ -83,7 +88,6 @@ public class MVService implements KVService {
                     }
                     httpExchange.close();
                 }
-
             } catch (IllegalArgumentException e) {
                 e.printStackTrace();
             }
@@ -96,20 +100,17 @@ public class MVService implements KVService {
      * @return {@link String} ONLINE, если запрос /v0/status или /v0/status и любые символы далее;
      * id, если запрос /v0/entity?id=;
      * в остальных случая -  исключение.
-     * @throws IllegalArgumentException, если запрос не удовлетворяет шаблонам /v0/status и /v0/entity?id=
      */
-    private String idFromURI(URI uri) throws IllegalArgumentException {
+    public static String idFromURI(String uri) throws IllegalArgumentException {
         Pattern status = Pattern.compile(PATTERN_STATUS + ".*");
-        Matcher matcher = status.matcher(uri.toString());
+        Matcher matcher = status.matcher(uri);
         if(matcher.matches()) return ONLINE;
 
         matcher.usePattern(Pattern.compile(PATTERN_ENTITY + ".*"));
         if(matcher.matches()) {
             matcher.usePattern(Pattern.compile(PATTERN_ENTITY));
             return matcher.replaceFirst("");
-        } else {
-            throw new IllegalArgumentException("Request is not supported");
-        }
+        } else throw new IllegalArgumentException("Incorrect request");
     }
 
 

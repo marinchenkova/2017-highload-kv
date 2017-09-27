@@ -1,6 +1,7 @@
 package ru.mail.polis;
 
 import org.jetbrains.annotations.NotNull;
+import ru.mail.polis.marinchenkova.DataBase;
 import ru.mail.polis.marinchenkova.MVService;
 
 import java.io.File;
@@ -46,6 +47,6 @@ final class KVServiceFactory {
         }
 
         // TODO: Implement me
-        return new MVService(port);
+        return new MVService(port, new DataBase());
     }
 }

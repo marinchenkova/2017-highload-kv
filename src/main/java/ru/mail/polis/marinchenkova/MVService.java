@@ -4,9 +4,6 @@ import com.sun.net.httpserver.HttpServer;
 import ru.mail.polis.KVService;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.InetSocketAddress;
 import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
@@ -35,8 +32,8 @@ public class MVService implements KVService {
     private final IDataBase dataBase;
 
 
-    public MVService(int port, IDataBase dataBase) throws IOException {
-        this.dataBase = dataBase;
+    public MVService(int port, IDataBase dBase) throws IOException {
+        this.dataBase = dBase;
         server = HttpServer.create(new InetSocketAddress(port), 0);
 
         //Status context
@@ -59,20 +56,20 @@ public class MVService implements KVService {
                             Value val = dataBase.get(id);
                             httpExchange.sendResponseHeaders(200, val.getBytes().length);
                             httpExchange.getResponseBody().write(val.getBytes());
-                        } catch (NoSuchElementException e) {
+                        } catch (NoSuchElementException | IOException e) {
                             httpExchange.sendResponseHeaders(404, 0);
+                            httpExchange.close();
                         }
                         break;
 
                     case PUT:
-                        //TODO case PUT
                         int available = httpExchange.getRequestBody().available();
                         byte[] data = new byte[available];
 
-                        if(httpExchange.getRequestBody().read(data) != data.length)
-                            throw new IOException("Can not read at 1 go");
+                        //TODO case PUT: safe read InputStream
+                        int read = httpExchange.getRequestBody().read(data);
 
-                        dataBase.upsert(id, new Value(data));
+                        dataBase.put(id, new Value(data));
                         httpExchange.sendResponseHeaders(201, 0);
                         break;
 

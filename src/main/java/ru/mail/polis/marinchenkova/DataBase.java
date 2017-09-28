@@ -32,7 +32,7 @@ public class DataBase implements IDataBase{
      * @param key {@link String} ключ
      * @param val {@link Value} новое значение
      */
-    public void upsert(String key, Value val) throws IOException {
+    public void put(String key, Value val) throws IOException {
         map.put(key, val);
     }
 

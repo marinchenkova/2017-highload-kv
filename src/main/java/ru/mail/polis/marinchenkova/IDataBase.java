@@ -8,6 +8,6 @@ import java.util.NoSuchElementException;
  */
 public interface IDataBase {
     Value get(String id) throws NoSuchElementException, IOException;
-    void upsert(String id, Value val) throws IOException;
+    void put(String id, Value val) throws IOException;
     void delete(String id) throws IOException;
 }

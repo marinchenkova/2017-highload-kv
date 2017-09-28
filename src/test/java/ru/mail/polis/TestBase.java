@@ -12,7 +12,7 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * @author Vadim Tsesko <mail@incubos.org>
  */
-abstract class TestBase {
+public abstract class TestBase {
     private static final int VALUE_LENGTH = 1024;
 
     static int randomPort() {
@@ -20,12 +20,12 @@ abstract class TestBase {
     }
 
     @NotNull
-    static String randomKey() {
+    public static String randomKey() {
         return Long.toHexString(ThreadLocalRandom.current().nextLong());
     }
 
     @NotNull
-    static byte[] randomValue() {
+    public static byte[] randomValue() {
         final byte[] result = new byte[VALUE_LENGTH];
         ThreadLocalRandom.current().nextBytes(result);
         return result;

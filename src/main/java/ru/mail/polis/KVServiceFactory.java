@@ -46,7 +46,6 @@ final class KVServiceFactory {
             throw new IllegalArgumentException("Path is not a directory: " + data);
         }
 
-        // TODO: Implement me
         return new MVService(port, new DataBase());
     }
 }

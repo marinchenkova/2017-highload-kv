@@ -53,12 +53,11 @@ public class MVService implements KVService {
                 switch (method) {
                     case GET:
                         try {
-                            Value val = dataBase.get(id);
-                            httpExchange.sendResponseHeaders(200, val.getBytes().length);
-                            httpExchange.getResponseBody().write(val.getBytes());
+                            byte[] data = dataBase.get(id);
+                            httpExchange.sendResponseHeaders(200, data.length);
+                            httpExchange.getResponseBody().write(data);
                         } catch (NoSuchElementException | IOException e) {
                             httpExchange.sendResponseHeaders(404, 0);
-                            httpExchange.close();
                         }
                         break;
 
@@ -66,10 +65,10 @@ public class MVService implements KVService {
                         int available = httpExchange.getRequestBody().available();
                         byte[] data = new byte[available];
 
-                        //TODO case PUT: safe read InputStream
+                        //TODO case PUT: safe search InputStream
                         int read = httpExchange.getRequestBody().read(data);
 
-                        dataBase.put(id, new Value(data));
+                        dataBase.put(id, data);
                         httpExchange.sendResponseHeaders(201, 0);
                         break;
 

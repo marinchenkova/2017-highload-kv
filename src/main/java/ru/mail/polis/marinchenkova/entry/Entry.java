@@ -1,4 +1,4 @@
-package ru.mail.polis.marinchenkova;
+package ru.mail.polis.marinchenkova.entry;
 
 import java.util.Arrays;
 
@@ -6,35 +6,35 @@ import java.util.Arrays;
  * Запись в базу данных. Структура:
  *
  * <entry>
- * <num>
- *     1
- * </num>
- * <key>
- *     KEY
- * </key>
- * <data>
- *     DATA
- * </data>
+ *     <num>
+ *         1
+ *     </num>
+ *     <key>
+ *         KEY
+ *     </key>
+ *     <data>
+ *         DATA
+ *     </data>
  * </entry>
  *
  * @author Marinchenko V. A.
  */
 public class Entry {
 
-    private final static String ENTRY_BEGIN = "<entry>";
-    private final static String ENTRY_END = "</entry>";
+    final static String ENTRY_BEGIN = "<entry>";
+    final static String ENTRY_END = "</entry>";
 
-    private final static String NUM_BEGIN = "<num>";
-    private final static String NUM_END = "</num>";
+    final static String NUM_BEGIN = "<num>";
+    final static String NUM_END = "</num>";
 
-    private final static String KEY_BEGIN = "<key>";
-    private final static String KEY_END = "</key>";
+    final static String KEY_BEGIN = "<key>";
+    final static String KEY_END = "</key>";
 
-    private final static String DATA_BEGIN = "<data>";
-    private final static String DATA_END = "</data>";
+    final static String DATA_BEGIN = "<data>";
+    final static String DATA_END = "</data>";
 
-    private final static String SPACE4 = "    ";
-    private final static String SPACE8 = "        ";
+    final static String SPACE4 = "    ";
+    final static String SPACE8 = "        ";
 
 
 
@@ -67,11 +67,11 @@ public class Entry {
         String dataArray[] = new String[size];
 
         for(int i = 0; i < size - 1; i++){
-            dataArray[i] = Arrays.toString(
+            dataArray[i] = SPACE8 + Arrays.toString(
                     Arrays.copyOfRange(text, i * 100, (i + 1)*100 - 1));
         }
 
-        dataArray[size - 1] = Arrays.toString(
+        dataArray[size - 1] = SPACE8 + Arrays.toString(
                 Arrays.copyOfRange(text, (size - 1)*100, text.length));
 
         return dataArray;
@@ -83,10 +83,10 @@ public class Entry {
 
 
         for(int i = 0; i < size - 1; i++){
-            dataArray[i] = text.substring(i * 100, (i + 1)*100 - 1);
+            dataArray[i] = SPACE8 + text.substring(i * 100, (i + 1)*100 - 1);
         }
 
-        dataArray[size - 1] = text.substring((size - 1)*100, text.length());
+        dataArray[size - 1] = SPACE8 + text.substring((size - 1)*100, text.length());
 
         return dataArray;
     }
@@ -109,14 +109,14 @@ public class Entry {
             int p = 5;
 
             for(int i = 0; i < keyStringArray.length; i++){
-                allArray[p++] = SPACE8 + keyStringArray[i];
+                allArray[p++] = keyStringArray[i];
             }
 
             allArray[p++] = SPACE4 + KEY_END;
             allArray[p++] = SPACE4 + DATA_BEGIN;
 
             for(int i = 0; i < dataStringArray.length; i++){
-                allArray[p++] = SPACE8 + dataStringArray[i];
+                allArray[p++] = dataStringArray[i];
             }
 
             allArray[p++] = SPACE4 + DATA_END;

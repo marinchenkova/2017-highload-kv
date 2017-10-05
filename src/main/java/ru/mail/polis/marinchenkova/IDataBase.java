@@ -7,7 +7,7 @@ import java.util.NoSuchElementException;
  * @author Marinchenko V. A.
  */
 public interface IDataBase {
-    Value get(String id) throws NoSuchElementException, IOException;
-    void put(String id, Value val) throws IOException;
-    void delete(String id) throws IOException;
+    byte[] get(String key) throws NoSuchElementException, IOException;
+    void put(String key, byte[] data) throws IOException;
+    void delete(String key) throws IOException;
 }

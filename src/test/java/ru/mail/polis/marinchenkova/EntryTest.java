@@ -2,6 +2,7 @@ package ru.mail.polis.marinchenkova;
 
 import org.junit.BeforeClass;
 import org.junit.Test;
+import ru.mail.polis.marinchenkova.entry.Entry;
 
 import java.io.IOException;
 

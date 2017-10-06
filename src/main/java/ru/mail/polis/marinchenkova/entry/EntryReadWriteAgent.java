@@ -5,14 +5,18 @@ package ru.mail.polis.marinchenkova.entry;
  */
 public class EntryReadWriteAgent {
 
+    private final static String PATH_DB = "D:\\MailRu_DB";
+
     private int cnt = 0;
 
     private EntryWriter entryWriter;
     private EntryReader entryReader;
+    private RandomAccessDBAgent agent;
 
     public EntryReadWriteAgent(){
-        entryReader = new EntryReader();
-        entryWriter = new EntryWriter();
+        agent = new RandomAccessDBAgent(PATH_DB);
+        entryReader = new EntryReader(agent);
+        entryWriter = new EntryWriter(agent);
     }
 
     public boolean containsKey(String key) {
@@ -33,6 +37,6 @@ public class EntryReadWriteAgent {
     }
 
     public void remove(String key) {
-        if(entryWriter.remove(entryReader, key)) cnt--;
+        //if(entryWriter.remove(entryReader, key)) cnt--;
     }
 }

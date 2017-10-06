@@ -4,8 +4,9 @@ import java.io.*;
 import java.util.Arrays;
 import java.util.NoSuchElementException;
 
+import static ru.mail.polis.marinchenkova.entry.RandomAccessDBAgent.MODE_READ;
+import static ru.mail.polis.marinchenkova.entry.RandomAccessDBAgent.filesCount;
 import static ru.mail.polis.marinchenkova.entry.Entry.*;
-import static ru.mail.polis.marinchenkova.entry.EntryWriter.*;
 
 /**
  * @author Marinchenko V. A.
@@ -13,9 +14,10 @@ import static ru.mail.polis.marinchenkova.entry.EntryWriter.*;
 public class EntryReader {
 
     private EntryPosition lastPos;
+    private RandomAccessDBAgent agent;
 
-    public EntryReader(){
-        lastPos = new EntryPosition(-1,-1, 0, 0,"");
+    public EntryReader(RandomAccessDBAgent agent){
+        this.agent = agent;
     }
 
     public boolean containsKey(String key) {
@@ -28,7 +30,7 @@ public class EntryReader {
     }
 
     public byte[] read(String key) throws NoSuchElementException {
-        if(lastPos.key.equals(key)) return search(key, true);
+        if(lastPos != null && lastPos.key.equals(key)) return search(key, true);
         else return search(key, false);
     }
 
@@ -47,32 +49,29 @@ public class EntryReader {
         int fileNum = 1;
         int lineNum = 0;
 
+        int dataCount = 0;
+        int keyCount = 0;
+
         if(goOn) {
             fileNum = lastPos.fileNum;
             lineNum = lastPos.lineNum;
         }
 
-        for(int i = fileNum; i <= filesCount; i++){
-            try {
-                File file = new File(filePath(i));
-                FileInputStream fstream = new FileInputStream(file);
-                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(fstream));
+        try {
+            agent.open(MODE_READ);
+            for(int i = fileNum; i <= filesCount; i++) {
+                for (int k = 0; k < lineNum; k++) agent.readLine(i);
+                for (int j = lineNum; j < agent.getFullSize(); j++) {
+                    String line = agent.readLine(i).trim();
 
-                int dataCount = 0;
-                int keyCount = 0;
-                for(int k = 0; k < lineNum; k++) bufferedReader.readLine();
-                for(int j = lineNum; j < getSize(file); j++){
-                    String line = bufferedReader.readLine().trim();
-
-                    if(keyFound) {
-                        if(data && !line.equals(DATA_END)) {
+                    if (keyFound) {
+                        if (data && !line.equals(DATA_END)) {
                             dataCount++;
                             rawData = rawData.concat(line);
                         }
 
-                        if(line.equals(DATA_BEGIN)) data = true;
-                        else if(line.equals(DATA_END)) {
-                            data = false;
+                        if (line.equals(DATA_BEGIN)) data = true;
+                        else if (line.equals(DATA_END)) {
                             lastPos = new EntryPosition(
                                     i,
                                     j - dataCount - keyCount - 7,
@@ -82,30 +81,28 @@ public class EntryReader {
                             return parseData(rawData);
                         }
                     } else {
-                        if(data && !line.equals(KEY_END)) {
+                        if (data && !line.equals(KEY_END)) {
                             keyCount++;
                             rawKey = rawKey.concat(line);
                         }
 
-                        if(line.equals(KEY_BEGIN)) {
+                        if (line.equals(KEY_BEGIN)) {
                             rawKey = "";
                             data = true;
-                        } else if(line.equals(KEY_END)) {
+                        } else if (line.equals(KEY_END)) {
                             data = false;
-                            if(rawKey.equals(key)) keyFound = true;
+                            if (rawKey.equals(key)) keyFound = true;
                         }
 
                     }
                 }
-
-                bufferedReader.close();
-                fstream.close();
-
-            } catch (IOException e){
-                e.printStackTrace();
             }
+            agent.close();
 
+        } catch (IOException e){
+            e.printStackTrace();
         }
+
         throw new NoSuchElementException();
     }
 

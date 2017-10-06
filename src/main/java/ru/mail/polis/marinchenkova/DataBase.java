@@ -31,15 +31,6 @@ public class DataBase implements IDataBase{
 
     public static void main(String[] args) {
         EntryReadWriteAgent agent = new EntryReadWriteAgent();
-/*
-        for(int i = 0; i < 50; i++){
-            System.out.println(i);
-            agent.writeEntry("KEY_" + i, randomValue());
-        }
-
-        System.out.println(agent.containsKey("KEY_20"));
-        System.out.println(Arrays.toString(agent.read("KEY_20")));
-*/
         byte dataBig[] = new byte[]{
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -263,7 +254,19 @@ public class DataBase implements IDataBase{
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,};
 
         byte dataLittle[] = new byte[]{1, 2, 3};
-        agent.remove("KEY_2");
+
+/*
+        for(int i = 0; i < 1000; i++){
+            System.out.println(i);
+            agent.writeEntry("KEY_" + i, randomValue());
+        }
+*/
+
+        System.out.println(agent.containsKey("KEY_29"));
+        System.out.println(Arrays.toString(agent.read("KEY_29")));
+
+
+        //agent.remove("KEY_2");
 
     }
 

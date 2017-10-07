@@ -60,9 +60,8 @@ public class EntryReader {
         try {
             agent.open(MODE_READ);
             for(int i = fileNum; i <= filesCount; i++) {
-                for (int k = 0; k < lineNum; k++) agent.readLine(i);
                 for (int j = lineNum; j < agent.getFullSize(); j++) {
-                    String line = agent.readLine(i).trim();
+                    String line = agent.readLine(i, j).trim();
 
                     if (keyFound) {
                         if (data && !line.equals(DATA_END)) {
@@ -80,6 +79,7 @@ public class EntryReader {
                                     key);
                             return parseData(rawData);
                         }
+
                     } else {
                         if (data && !line.equals(KEY_END)) {
                             keyCount++;
@@ -91,7 +91,9 @@ public class EntryReader {
                             data = true;
                         } else if (line.equals(KEY_END)) {
                             data = false;
-                            if (rawKey.equals(key)) keyFound = true;
+                            if (rawKey.equals(key)){
+                                 keyFound = true;
+                            }
                         }
 
                     }
@@ -99,7 +101,7 @@ public class EntryReader {
             }
             agent.close();
 
-        } catch (IOException e){
+        } catch (IOException | InstantiationException e){
             e.printStackTrace();
         }
 

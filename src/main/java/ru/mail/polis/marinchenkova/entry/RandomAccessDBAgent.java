@@ -1,13 +1,14 @@
 package ru.mail.polis.marinchenkova.entry;
 
 import java.io.*;
+import java.util.NoSuchElementException;
 
 /**
  * @author Marinchenko V. A.
  */
 public class RandomAccessDBAgent {
 
-    private final static int maxStrings = 10_000;
+    private final static int maxStrings = 1_000;
     public final static String MODE_READ = "r";
     public final static String MODE_WRITE = "w";
     public final static String MODE_FULL = "rw";
@@ -15,10 +16,10 @@ public class RandomAccessDBAgent {
     public static int filesCount = 0;
     private static String pathDB;
 
-    private File lastFile;
-    private int lastSize;
-    private int readFile;
-    private int readLine;
+    private File writeFile;
+    private File readFile;
+    private int writeFileSize;
+    private int readFileCount;
 
     private FileWriter fileWriter;
     private BufferedReader fileReader;
@@ -28,7 +29,8 @@ public class RandomAccessDBAgent {
         checkFilesCount();
     }
 
-    public void open(String mode) throws  IllegalArgumentException{
+    public void open(String mode) throws IllegalArgumentException,
+                                         InstantiationException {
         switch (mode) {
             case MODE_READ:
                 readMode();
@@ -42,14 +44,21 @@ public class RandomAccessDBAgent {
 
                 break;
             default:
-                throw new IllegalArgumentException("Wrong mode!");
+                throw new IllegalArgumentException("Wrong RandomAccessDBAgent mode!");
         }
-
-
-
     }
 
-    private void changeFile(File newFile){
+    public void close(){
+        try {
+            if(fileReader != null) fileReader.close();
+            if(fileWriter != null) fileWriter.flush();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private void setFileReader(File newFile){
         try {
             if(fileReader != null) fileReader.close();
             FileInputStream fstream = new FileInputStream(newFile);
@@ -60,73 +69,126 @@ public class RandomAccessDBAgent {
         }
     }
 
-    private void readMode(){
+    private void setFileWriter(File newFile){
+        try {
+            if(fileWriter != null) fileWriter.flush();
+            newFile.createNewFile();
+            fileWriter = new FileWriter(newFile, true);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void readMode() throws InstantiationException {
         checkFilesCount();
-        changeFile(new File(filePath(readFile = 1)));
+        if (filesCount == 0) throw new InstantiationException("Nothing to read!");
+        else {
+            readFile = new File(filePath(1));
+            setFileReader(readFile);
+        }
     }
 
     private void writeMode(){
         checkFilesCount();
         if (filesCount == 0) filesCount++;
-        lastFile = new File(filePath(filesCount));
+        writeFile = new File(filePath(filesCount));
 
-        if (lastFile.exists() && getSize(lastFile) >= maxStrings) {
-            lastFile = new File(filePath(++filesCount));
-        } else if(!lastFile.exists()){
+        if (writeFile.exists() && getSize(writeFile) >= maxStrings) {
+            writeFile = new File(filePath(++filesCount));
+        } else if(!writeFile.exists()){
             try {
-                lastFile.createNewFile();
+                writeFile.createNewFile();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
 
-
+        setFileWriter(writeFile);
     }
 
-    public void write(String[] text) {
+    public void writeArray(String[] text) {
+        writeFileSize = getSize(writeFile);
+        for(String s : text) {
+            writeLine(s);
+        }
+    }
+
+    private void writeLine(String str) {
         try {
-            fileWriter = new FileWriter(lastFile, true);
-            lastSize = getSize(lastFile);
 
-            for (String str : text) {
-                //Write 1 string
-                fileWriter.write(str);
-                fileWriter.write("\r\n");
-
-                //Check size of fileNum
-                if (++lastSize >= maxStrings) {
-                    fileWriter.flush();
-                    lastFile = new File(filePath(++filesCount));
-                    lastFile.createNewFile();
-                    lastSize = 0;
-
-                    fileWriter = new FileWriter(lastFile, true);
-                }
+            if (writeFileSize >= maxStrings) {
+                writeFile = new File(filePath(++filesCount));
+                writeFile.createNewFile();
+                writeFileSize = 0;
+                setFileWriter(writeFile);
             }
 
-            fileWriter.flush();
+            writeFileSize++;
+            writeLine(str, writeFile);
 
         } catch (IOException e) {
             e.printStackTrace();
         }
+
     }
 
-    public void close(){
-        try {
-            fileReader.close();
-            fileWriter.close();
-        } catch (IOException e) {
-            e.printStackTrace();
+    private void writeLine(String str, File file) throws IOException {
+        if(!writeFile.equals(file)) {
+            writeFile = file;
+            setFileWriter(writeFile);
         }
+
+        fileWriter.write(str);
+        fileWriter.write("\r\n");
     }
 
-    public String readLine(int fileNum) throws IOException{
-        if(readFile != fileNum) {
-            readFile = fileNum;
-            changeFile(new File(filePath(fileNum)));
+    public String readLine(int fileNum, int lineNum) throws IOException {
+        readFile = new File(filePath(fileNum));
+        for(int i = 0; i < lineNum; i++) readLine(readFile);
+        return readLine(readFile);
+    }
+
+    public String readLine(File file) throws IOException {
+        if(!readFile.equals(file)) {
+            readFile = file;
+            setFileReader(readFile);
         }
 
         return fileReader.readLine();
+    }
+
+    public boolean removeEntry(String key, EntryPosition ep){
+        try {
+
+            for(int i = ep.fileNum; i < filesCount; i++) {
+                File temp = File.createTempFile("file", ".txt", writeFile.getParentFile());
+                readFile = new File(filePath(i));
+
+                setFileReader(readFile);
+                setFileWriter(temp);
+
+                for(int j = 0; j < getSize(readFile); j++) {
+                    String line = fileReader.readLine();
+                    if(i < ep.lineNum || i > ep.lineNum + ep.sum - 2) fileWriter.write(line + "\r\n");
+                }
+
+
+            }
+
+
+/*
+            reader.close();
+            writer.close();
+
+            writeFile.delete();
+            temp.renameTo(writeFile);
+*/
+            return true;
+
+        } catch (IOException |NoSuchElementException e) {
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public int getFullSize(){

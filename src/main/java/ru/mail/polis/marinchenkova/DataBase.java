@@ -23,8 +23,8 @@ public class DataBase implements IDataBase{
     }
 
     @NotNull
-    public static byte[] randomValue() {
-        final byte[] result = new byte[1000];
+    public static byte[] randomValue(int bytes) {
+        final byte[] result = new byte[bytes];
         ThreadLocalRandom.current().nextBytes(result);
         return result;
     }
@@ -251,20 +251,20 @@ public class DataBase implements IDataBase{
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                1, 1, 1, 1, 1, 1, 1, 1, 1, 1,};
+                1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
         byte dataLittle[] = new byte[]{1, 2, 3};
 
-/*
-        for(int i = 0; i < 1000; i++){
+
+        for(int i = 0; i < 500; i++){
             System.out.println(i);
-            agent.writeEntry("KEY_" + i, randomValue());
+            agent.writeEntry("KEY_" + i, randomValue(8000));
         }
+
+/*
+        System.out.println(agent.containsKey("KEY_1"));
+        System.out.println(Arrays.toString(agent.read("KEY_1")));
 */
-
-        System.out.println(agent.containsKey("KEY_29"));
-        System.out.println(Arrays.toString(agent.read("KEY_29")));
-
 
         //agent.remove("KEY_2");
 

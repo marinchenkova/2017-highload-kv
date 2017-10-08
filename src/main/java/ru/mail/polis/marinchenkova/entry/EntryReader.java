@@ -57,6 +57,7 @@ public class EntryReader {
 
             String line = agent.readLine().trim();
             int j = 0;
+
             while (line != null) {
                 j++;
 
@@ -95,20 +96,15 @@ public class EntryReader {
                         }
                     }
                 }
-                try{
-                    line = agent.readLine().trim();
-                } catch (NullPointerException e) {
-                    break;
-                }
+
+                line = agent.readLine().trim();
             }
 
             agent.close();
 
-        } catch (IOException e) {
+        } catch (IOException | NullPointerException e) {
             agent.close();
-            e.printStackTrace();
         }
-
 
         throw new NoSuchElementException();
     }

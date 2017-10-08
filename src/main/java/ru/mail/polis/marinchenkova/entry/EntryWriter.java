@@ -26,16 +26,16 @@ public class EntryWriter {
     }
 
     public void rewriteEntry(EntryReader er, Entry newEntry) {
-        //if(remove(er, newEntry.getKey())) writeEntry(newEntry);
+        if(remove(er, newEntry.getKey())) writeEntry(newEntry);
     }
 
     public boolean remove(EntryReader eReader, String key) {
         try {
             EntryPosition ep = eReader.search(key);
             agent.open(RandomAccessDBAgent.MODE_FULL);
-            agent.removeEntry(ep);
+            boolean removed = agent.removeEntry(ep);
             agent.close();
-            return true;
+            return removed;
 
         } catch (NoSuchElementException | IOException e) {
             return false;

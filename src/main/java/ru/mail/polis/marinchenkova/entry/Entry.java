@@ -68,7 +68,7 @@ public class Entry {
 
         for(int i = 0; i < size - 1; i++){
             dataArray[i] = SPACE8 + Arrays.toString(
-                    Arrays.copyOfRange(text, i * 100, (i + 1)*100 - 1));
+                    Arrays.copyOfRange(text, i * 100, (i + 1)*100));
         }
 
         dataArray[size - 1] = SPACE8 + Arrays.toString(

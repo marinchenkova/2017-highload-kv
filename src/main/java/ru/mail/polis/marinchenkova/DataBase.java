@@ -30,21 +30,24 @@ public class DataBase implements IDataBase{
     }
 
     public static void main(String[] args) {
-        EntryReadWriteAgent agent = new EntryReadWriteAgent();
+        DataBase dataBase = new DataBase();
+        try {
 
-/*
-        for(int i = 0; i < 10; i++){
-            System.out.println(i);
-            agent.writeEntry("KEY_" + i, randomValue(1024));
+            for(int i = 0; i < 2; i++) {
+                System.out.println(i);
+                dataBase.put("KEY_" + i, randomValue(1024));
+            }
+
+
+            //System.out.println(Arrays.toString(dataBase.get("KEY_0")));
+
+        } catch (IOException e) {
+
         }
-*/
+
 
         //System.out.println(agent.containsKey("KEY_10"));
         //System.out.println(Arrays.toString(agent.read("KEY_10")));
-
-
-        System.out.println(agent.remove("KEY_4"));
-
     }
 
     private EntryReadWriteAgent agent;

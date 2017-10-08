@@ -18,15 +18,13 @@ public class DataBaseTest {
     public void getPutTest() throws Exception {
         String key = randomKey();
         byte data[] = randomValue();
+        byte empty[] = new byte[0];
 
-        Value val = new Value(data);
-        Value empty = new Value(new byte[0]);
-
-        dataBase.put(key, val);
-        assertArrayEquals(val.getBytes(), dataBase.get(key).getBytes());
+        dataBase.put(key, data);
+        assertArrayEquals(data, dataBase.get(key));
 
         dataBase.put(key, empty);
-        assertArrayEquals(empty.getBytes(), dataBase.get(key).getBytes());
+        assertArrayEquals(empty, dataBase.get(key));
     }
 
     @Test

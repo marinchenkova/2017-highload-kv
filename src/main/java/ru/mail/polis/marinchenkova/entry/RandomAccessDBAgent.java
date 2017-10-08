@@ -1,5 +1,7 @@
 package ru.mail.polis.marinchenkova.entry;
 
+import org.jetbrains.annotations.Nullable;
+
 import java.io.*;
 import java.util.NoSuchElementException;
 
@@ -8,12 +10,13 @@ import java.util.NoSuchElementException;
  */
 public class RandomAccessDBAgent {
 
-    private final static int maxStrings = 10_0;
+    private final static int maxStrings = 1_0;
     public final static String MODE_READ = "r";
     public final static String MODE_WRITE = "w";
     public final static String MODE_FULL = "rw";
 
     public static int filesCount = 0;
+    public static int count = 0;
     private static String pathDB;
 
     private File writeFile;
@@ -44,7 +47,8 @@ public class RandomAccessDBAgent {
                 break;
 
             case MODE_FULL:
-
+                readMode();
+                writeMode();
                 break;
             default:
                 throw new IllegalArgumentException("Wrong RandomAccessDBAgent mode!");
@@ -55,29 +59,6 @@ public class RandomAccessDBAgent {
         try {
             if(fileReader != null) fileReader.close();
             if(fileWriter != null) fileWriter.flush();
-        } catch (IOException e) {
-
-        }
-    }
-
-
-    private void setFileReader(File newFile) {
-        try {
-            if(fileReader != null) fileReader.close();
-            FileInputStream fstream = new FileInputStream(newFile);
-            fileReader = new BufferedReader(new InputStreamReader(fstream));
-
-        } catch (IOException e) {
-
-        }
-    }
-
-    private void setFileWriter(File newFile) {
-        try {
-            if(fileWriter != null) fileWriter.flush();
-            newFile.createNewFile();
-            fileWriter = new FileWriter(newFile, true);
-
         } catch (IOException e) {
 
         }
@@ -110,40 +91,71 @@ public class RandomAccessDBAgent {
         setFileWriter(writeFile);
     }
 
-    public void writeArray(String[] text) {
-        writeFileSize = getSize(writeFile);
-        for(String s : text) {
-            writeLine(s);
+    private void setFileReader(File newFile) {
+        try {
+            if(fileReader != null) {
+                if(!readFile.equals(newFile)) {
+                    fileReader.close();
+                    readFile = newFile;
+                    FileInputStream fstream = new FileInputStream(readFile);
+                    fileReader = new BufferedReader(new InputStreamReader(fstream));
+                }
+
+            } else {
+                readFile = newFile;
+                FileInputStream fstream = new FileInputStream(readFile);
+                fileReader = new BufferedReader(new InputStreamReader(fstream));
+            }
+
+        } catch (IOException e) {
+
         }
     }
 
-    private void writeLine(String str) {
+    private void setFileWriter(File newFile) {
         try {
-
-            if (writeFileSize >= maxStrings) {
-                writeFile = new File(filePath(++filesCount));
-                writeFile.createNewFile();
-                writeFileSize = 0;
-                setFileWriter(writeFile);
+            if(fileWriter != null) {
+                fileWriter.close();
             }
 
-            writeFileSize++;
-            writeLine(str, writeFile);
+            writeFile = newFile;
+            if(!writeFile.exists()) writeFile.createNewFile();
+            fileWriter = new FileWriter(writeFile, true);
+
+        } catch (IOException e) {
+
+        }
+    }
+
+    public void writeArray(String[] text) {
+        count = filesCount;
+        writeArray(text, "");
+    }
+
+    private void writeArray(String[] text, String startFileName) {
+        try {
+            File file = new File(filePath(startFileName, count));
+            setFileWriter(file);
+
+            writeFileSize = getSize(writeFile);
+
+            for(String s : text) {
+                if (writeFileSize >= maxStrings) {
+                    fileWriter.close();
+                    File next = new File(filePath(startFileName, ++count));
+                    setFileWriter(next);
+                    writeFileSize = 0;
+                }
+
+                writeFileSize++;
+                fileWriter.write(s + "\r\n");
+            }
+
+            fileWriter.close();
 
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-    }
-
-    private void writeLine(String str, File file) throws IOException {
-        if(!writeFile.equals(file)) {
-            writeFile = file;
-            setFileWriter(writeFile);
-        }
-
-        fileWriter.write(str);
-        fileWriter.write("\r\n");
     }
 
     private void skipReadLines(int lines) {
@@ -167,6 +179,7 @@ public class RandomAccessDBAgent {
         setReaderToPosition(start);
     }
 
+    @Nullable
     public String readLine(){
         try {
             String line = readLine(readFile);
@@ -196,30 +209,27 @@ public class RandomAccessDBAgent {
         try {
             boolean done = false;
 
-            for(int i = ep.fileNum; i < filesCount; i++) {
+            for(int i = ep.fileNum; i <= filesCount; i++) {
                 readFile = new File(filePath(i));
-                writeFile = new File(filePath(i));
-
-                File temp = File.createTempFile("file", ".txt", writeFile.getParentFile());
+                writeFile = File.createTempFile("file", ".txt", readFile.getParentFile());
 
                 setFileReader(readFile);
-                setFileWriter(temp);
+                setFileWriter(writeFile);
 
                 String line = readLine(readFile);
-                int j = 0;
+                int j = 1;
                 while (line != null) {
-                    if(j < ep.lineNum || j > ep.lineNum + ep.sum)
-                        fileWriter.write(line + "\r\n");
+                    if(j < ep.lineNum || j > ep.lineNum + ep.sum +1)
+                        //writeLine(line + "\r\n");
                     if(j == ep.lineNum + ep.sum) done = true;
                     j++;
-                    line = fileReader.readLine();
+                    line = readLine(readFile);
                 }
 
-                fileWriter.close();
-                fileReader.close();
+                close();
 
-                writeFile.delete();
-                temp.renameTo(writeFile);
+                readFile.delete();
+                writeFile.renameTo(readFile);
 
                 if(done) break;
             }
@@ -254,9 +264,14 @@ public class RandomAccessDBAgent {
         }
     }
 
-    private static String filePath(int num){
+    private static String filePath(int num) {
         return  pathDB + "\\" + String.valueOf(num) + ".txt";
     }
+
+    private static String filePath(String start, int num) {
+        return  pathDB + "\\" + start + String.valueOf(num) + ".txt";
+    }
+
 
 
     private void checkFilesCount(){

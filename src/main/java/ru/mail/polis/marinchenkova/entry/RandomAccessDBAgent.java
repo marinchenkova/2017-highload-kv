@@ -1,7 +1,5 @@
 package ru.mail.polis.marinchenkova.entry;
 
-import org.jetbrains.annotations.Nullable;
-
 import java.io.*;
 import java.util.NoSuchElementException;
 
@@ -10,19 +8,20 @@ import java.util.NoSuchElementException;
  */
 public class RandomAccessDBAgent {
 
-    private final static int maxStrings = 1_0;
+    private final static int maxStrings = 3_0;
     public final static String MODE_READ = "r";
     public final static String MODE_WRITE = "w";
     public final static String MODE_FULL = "rw";
 
     public static int filesCount = 0;
-    public static int count = 0;
+
     private static String pathDB;
 
     private File writeFile;
     private File readFile;
     private int writeFileSize;
     private int readFileCount;
+    private int writeFileCount = 0;
 
     private EntryPosition start;
 
@@ -93,19 +92,11 @@ public class RandomAccessDBAgent {
 
     private void setFileReader(File newFile) {
         try {
-            if(fileReader != null) {
-                if(!readFile.equals(newFile)) {
-                    fileReader.close();
-                    readFile = newFile;
-                    FileInputStream fstream = new FileInputStream(readFile);
-                    fileReader = new BufferedReader(new InputStreamReader(fstream));
-                }
+            if(fileReader != null) fileReader.close();
 
-            } else {
-                readFile = newFile;
-                FileInputStream fstream = new FileInputStream(readFile);
-                fileReader = new BufferedReader(new InputStreamReader(fstream));
-            }
+            readFile = newFile;
+            FileInputStream fstream = new FileInputStream(readFile);
+            fileReader = new BufferedReader(new InputStreamReader(fstream));
 
         } catch (IOException e) {
 
@@ -114,9 +105,7 @@ public class RandomAccessDBAgent {
 
     private void setFileWriter(File newFile) {
         try {
-            if(fileWriter != null) {
-                fileWriter.close();
-            }
+            if(fileWriter != null) fileWriter.close();
 
             writeFile = newFile;
             if(!writeFile.exists()) writeFile.createNewFile();
@@ -128,13 +117,14 @@ public class RandomAccessDBAgent {
     }
 
     public void writeArray(String[] text) {
-        count = filesCount;
+        checkFilesCount();
+        writeFileCount = filesCount;
         writeArray(text, "");
     }
 
     private void writeArray(String[] text, String startFileName) {
         try {
-            File file = new File(filePath(startFileName, count));
+            File file = new File(filePath(startFileName, writeFileCount));
             setFileWriter(file);
 
             writeFileSize = getSize(writeFile);
@@ -142,7 +132,7 @@ public class RandomAccessDBAgent {
             for(String s : text) {
                 if (writeFileSize >= maxStrings) {
                     fileWriter.close();
-                    File next = new File(filePath(startFileName, ++count));
+                    File next = new File(filePath(startFileName, ++writeFileCount));
                     setFileWriter(next);
                     writeFileSize = 0;
                 }
@@ -168,9 +158,9 @@ public class RandomAccessDBAgent {
 
     public void setReaderToPosition(EntryPosition pos) {
         readFileCount = pos.fileNum;
-        readFile = new File(filePath(readFileCount));
 
-        setFileReader(readFile);
+        File file = new File(filePath(readFileCount));
+        setFileReader(file);
 
         skipReadLines(pos.lineNum);
     }
@@ -179,14 +169,13 @@ public class RandomAccessDBAgent {
         setReaderToPosition(start);
     }
 
-    @Nullable
     public String readLine(){
         try {
             String line = readLine(readFile);
 
             if(line == null) {
-                readFile = new File(filePath(++readFileCount));
-                setFileReader(readFile);
+                File file = new File(filePath(++readFileCount));
+                setFileReader(file);
                 line = readLine(readFile);
             }
             return line;
@@ -197,10 +186,7 @@ public class RandomAccessDBAgent {
     }
 
     private String readLine(File file) throws IOException {
-        if(!readFile.equals(file)) {
-            readFile = file;
-            setFileReader(readFile);
-        }
+        if(!readFile.equals(file)) setFileReader(file);
 
         return fileReader.readLine();
     }

@@ -20,7 +20,7 @@ public class EntryWriter {
             agent.writeArray(entry.entryArray());
             agent.close();
 
-        } catch (InstantiationException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -37,10 +37,9 @@ public class EntryWriter {
             agent.close();
             return true;
 
-        } catch (NoSuchElementException | InstantiationException e) {
+        } catch (NoSuchElementException | IOException e) {
             e.printStackTrace();
             return false;
         }
-
     }
 }

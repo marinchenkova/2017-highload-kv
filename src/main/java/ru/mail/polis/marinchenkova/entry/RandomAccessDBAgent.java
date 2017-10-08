@@ -8,7 +8,7 @@ import java.util.NoSuchElementException;
  */
 public class RandomAccessDBAgent {
 
-    private final static int maxStrings = 1_000;
+    private final static int maxStrings = 10_000;
     public final static String MODE_READ = "r";
     public final static String MODE_WRITE = "w";
     public final static String MODE_FULL = "rw";
@@ -21,16 +21,19 @@ public class RandomAccessDBAgent {
     private int writeFileSize;
     private int readFileCount;
 
+    private EntryPosition start;
+
     private FileWriter fileWriter;
     private BufferedReader fileReader;
 
     public RandomAccessDBAgent(String dataBasePath){
         pathDB = dataBasePath;
+        start = new EntryPosition(1);
+        start.set(0, 0, 0, "");
         checkFilesCount();
     }
 
-    public void open(String mode) throws IllegalArgumentException,
-                                         InstantiationException {
+    public void open(String mode) throws IllegalArgumentException, IOException {
         switch (mode) {
             case MODE_READ:
                 readMode();
@@ -58,37 +61,28 @@ public class RandomAccessDBAgent {
     }
 
 
-    private void setFileReader(File newFile){
-        try {
-            if(fileReader != null) fileReader.close();
-            FileInputStream fstream = new FileInputStream(newFile);
-            fileReader = new BufferedReader(new InputStreamReader(fstream));
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private void setFileReader(File newFile) throws IOException {
+        if(fileReader != null) fileReader.close();
+        FileInputStream fstream = new FileInputStream(newFile);
+        fileReader = new BufferedReader(new InputStreamReader(fstream));
     }
 
-    private void setFileWriter(File newFile){
-        try {
-            if(fileWriter != null) fileWriter.flush();
-            newFile.createNewFile();
-            fileWriter = new FileWriter(newFile, true);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private void setFileWriter(File newFile) throws IOException {
+        if(fileWriter != null) fileWriter.flush();
+        newFile.createNewFile();
+        fileWriter = new FileWriter(newFile, true);
     }
 
-    private void readMode() throws InstantiationException {
+    private void readMode() throws IOException {
         checkFilesCount();
-        if (filesCount == 0) throw new InstantiationException("Nothing to read!");
+        if (filesCount == 0) throw new FileNotFoundException("Nothing to read!");
         else {
             readFile = new File(filePath(1));
             setFileReader(readFile);
         }
     }
 
-    private void writeMode(){
+    private void writeMode() throws IOException {
         checkFilesCount();
         if (filesCount == 0) filesCount++;
         writeFile = new File(filePath(filesCount));
@@ -142,13 +136,47 @@ public class RandomAccessDBAgent {
         fileWriter.write("\r\n");
     }
 
-    public String readLine(int fileNum, int lineNum) throws IOException {
-        readFile = new File(filePath(fileNum));
-        for(int i = 0; i < lineNum; i++) readLine(readFile);
-        return readLine(readFile);
+    public void skipReadLines(int lines) {
+        try {
+            for(int i = 0; i < lines; i++) readLine(readFile);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    public String readLine(File file) throws IOException {
+    public void setReaderToPosition(EntryPosition pos) {
+        try {
+            readFileCount = pos.fileNum;
+            readFile = new File(filePath(readFileCount));
+
+            setFileReader(readFile);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void setReaderToBegin() {
+        setReaderToPosition(start);
+    }
+
+    public String readLine(){
+        try {
+            String line = readLine(readFile);
+
+            if(line == null) {
+                readFile = new File(filePath(++readFileCount));
+                setFileReader(readFile);
+                line = readLine(readFile);
+            }
+            return line;
+
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private String readLine(File file) throws IOException {
         if(!readFile.equals(file)) {
             readFile = file;
             setFileReader(readFile);
@@ -189,6 +217,10 @@ public class RandomAccessDBAgent {
             e.printStackTrace();
             return false;
         }
+    }
+
+    public int getReadFileCount(){
+        return readFileCount;
     }
 
     public int getFullSize(){

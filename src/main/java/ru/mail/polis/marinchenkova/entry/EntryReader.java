@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.NoSuchElementException;
 
 import static ru.mail.polis.marinchenkova.entry.RandomAccessDBAgent.MODE_READ;
-import static ru.mail.polis.marinchenkova.entry.RandomAccessDBAgent.filesCount;
 import static ru.mail.polis.marinchenkova.entry.Entry.*;
 
 /**
@@ -46,64 +45,67 @@ public class EntryReader {
         boolean data = false;
         boolean keyFound = false;
 
-        int fileNum = 1;
-        int lineNum = 0;
-
         int dataCount = 0;
         int keyCount = 0;
 
-        if(goOn) {
-            fileNum = lastPos.fileNum;
-            lineNum = lastPos.lineNum;
-        }
 
         try {
             agent.open(MODE_READ);
-            for(int i = fileNum; i <= filesCount; i++) {
-                for (int j = lineNum; j < agent.getFullSize(); j++) {
-                    String line = agent.readLine(i, j).trim();
 
-                    if (keyFound) {
-                        if (data && !line.equals(DATA_END)) {
-                            dataCount++;
-                            rawData = rawData.concat(line);
+            if(goOn) agent.setReaderToPosition(lastPos);
+            else agent.setReaderToBegin();
+
+            String line;
+            int j = 0;
+            do {
+                line = agent.readLine().trim();
+                j++;
+
+                if (keyFound) {
+                    if (data && !line.equals(DATA_END)) {
+                        dataCount++;
+                        rawData = rawData.concat(line);
+                    }
+
+                    if (line.equals(DATA_BEGIN)) data = true;
+                    else if (line.equals(DATA_END)) {
+                        lastPos.set(
+                                j - dataCount - keyCount - 7,
+                                keyCount,
+                                dataCount,
+                                key);
+
+                        agent.close();
+                        return parseData(rawData);
+                    }
+
+                } else {
+                    if (data && !line.equals(KEY_END)) {
+                        keyCount++;
+                        rawKey = rawKey.concat(line);
+                    }
+
+                    if (line.equals(KEY_BEGIN)) {
+                        lastPos = new EntryPosition(agent.getReadFileCount());
+                        rawKey = "";
+                        data = true;
+                    } else if (line.equals(KEY_END)) {
+                        data = false;
+                        if (rawKey.equals(key)){
+                            keyFound = true;
                         }
-
-                        if (line.equals(DATA_BEGIN)) data = true;
-                        else if (line.equals(DATA_END)) {
-                            lastPos = new EntryPosition(
-                                    i,
-                                    j - dataCount - keyCount - 7,
-                                    keyCount,
-                                    dataCount,
-                                    key);
-                            return parseData(rawData);
-                        }
-
-                    } else {
-                        if (data && !line.equals(KEY_END)) {
-                            keyCount++;
-                            rawKey = rawKey.concat(line);
-                        }
-
-                        if (line.equals(KEY_BEGIN)) {
-                            rawKey = "";
-                            data = true;
-                        } else if (line.equals(KEY_END)) {
-                            data = false;
-                            if (rawKey.equals(key)){
-                                 keyFound = true;
-                            }
-                        }
-
                     }
                 }
-            }
+
+            } while (line != null);
+
             agent.close();
 
-        } catch (IOException | InstantiationException e){
+        } catch (IOException e) {
+            agent.close();
             e.printStackTrace();
         }
+
 
         throw new NoSuchElementException();
     }

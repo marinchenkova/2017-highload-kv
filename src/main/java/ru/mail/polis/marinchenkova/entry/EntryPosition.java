@@ -5,16 +5,18 @@ package ru.mail.polis.marinchenkova.entry;
  */
 public class EntryPosition {
 
-    public final int fileNum;
-    public final int lineNum;
-    public final int dataCount;
-    public final int keyCount;
-    public final int sum;
-    public final String key;
+    public int fileNum;
+    public int lineNum;
+    public int dataCount;
+    public int keyCount;
+    public int sum;
+    public String key;
 
+    public EntryPosition(int fileNum) {
+        this.fileNum = fileNum;
+    }
 
-    public EntryPosition(int file, int lineNum, int keyCount, int dataCount, String key){
-        this.fileNum = file;
+    public void set(int lineNum, int keyCount, int dataCount, String key){
         this.lineNum = lineNum;
         this.keyCount = keyCount;
         this.dataCount = dataCount;

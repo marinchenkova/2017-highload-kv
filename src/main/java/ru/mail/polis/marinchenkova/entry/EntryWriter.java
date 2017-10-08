@@ -33,12 +33,11 @@ public class EntryWriter {
         try {
             EntryPosition ep = eReader.search(key);
             agent.open(RandomAccessDBAgent.MODE_FULL);
-            agent.removeEntry(key, ep);
+            agent.removeEntry(ep);
             agent.close();
             return true;
 
         } catch (NoSuchElementException | IOException e) {
-            e.printStackTrace();
             return false;
         }
     }

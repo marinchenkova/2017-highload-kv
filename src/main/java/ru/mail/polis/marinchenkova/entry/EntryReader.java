@@ -55,10 +55,9 @@ public class EntryReader {
             if(goOn) agent.setReaderToPosition(lastPos);
             else agent.setReaderToBegin();
 
-            String line;
+            String line = agent.readLine().trim();
             int j = 0;
-            do {
-                line = agent.readLine().trim();
+            while (line != null) {
                 j++;
 
                 if (keyFound) {
@@ -96,8 +95,12 @@ public class EntryReader {
                         }
                     }
                 }
-
-            } while (line != null);
+                try{
+                    line = agent.readLine().trim();
+                } catch (NullPointerException e) {
+                    break;
+                }
+            }
 
             agent.close();
 

@@ -8,7 +8,7 @@ import java.util.NoSuchElementException;
  */
 public class RandomAccessDBAgent {
 
-    private final static int maxStrings = 10_000;
+    private final static int maxStrings = 10_0;
     public final static String MODE_READ = "r";
     public final static String MODE_WRITE = "w";
     public final static String MODE_FULL = "rw";
@@ -56,21 +56,31 @@ public class RandomAccessDBAgent {
             if(fileReader != null) fileReader.close();
             if(fileWriter != null) fileWriter.flush();
         } catch (IOException e) {
-            e.printStackTrace();
+
         }
     }
 
 
-    private void setFileReader(File newFile) throws IOException {
-        if(fileReader != null) fileReader.close();
-        FileInputStream fstream = new FileInputStream(newFile);
-        fileReader = new BufferedReader(new InputStreamReader(fstream));
+    private void setFileReader(File newFile) {
+        try {
+            if(fileReader != null) fileReader.close();
+            FileInputStream fstream = new FileInputStream(newFile);
+            fileReader = new BufferedReader(new InputStreamReader(fstream));
+
+        } catch (IOException e) {
+
+        }
     }
 
-    private void setFileWriter(File newFile) throws IOException {
-        if(fileWriter != null) fileWriter.flush();
-        newFile.createNewFile();
-        fileWriter = new FileWriter(newFile, true);
+    private void setFileWriter(File newFile) {
+        try {
+            if(fileWriter != null) fileWriter.flush();
+            newFile.createNewFile();
+            fileWriter = new FileWriter(newFile, true);
+
+        } catch (IOException e) {
+
+        }
     }
 
     private void readMode() throws IOException {
@@ -136,7 +146,7 @@ public class RandomAccessDBAgent {
         fileWriter.write("\r\n");
     }
 
-    public void skipReadLines(int lines) {
+    private void skipReadLines(int lines) {
         try {
             for(int i = 0; i < lines; i++) readLine(readFile);
         } catch (IOException e) {
@@ -145,15 +155,12 @@ public class RandomAccessDBAgent {
     }
 
     public void setReaderToPosition(EntryPosition pos) {
-        try {
-            readFileCount = pos.fileNum;
-            readFile = new File(filePath(readFileCount));
+        readFileCount = pos.fileNum;
+        readFile = new File(filePath(readFileCount));
 
-            setFileReader(readFile);
+        setFileReader(readFile);
 
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        skipReadLines(pos.lineNum);
     }
 
     public void setReaderToBegin() {
@@ -185,32 +192,38 @@ public class RandomAccessDBAgent {
         return fileReader.readLine();
     }
 
-    public boolean removeEntry(String key, EntryPosition ep){
+    public boolean removeEntry(EntryPosition ep){
         try {
+            boolean done = false;
 
             for(int i = ep.fileNum; i < filesCount; i++) {
-                File temp = File.createTempFile("file", ".txt", writeFile.getParentFile());
                 readFile = new File(filePath(i));
+                writeFile = new File(filePath(i));
+
+                File temp = File.createTempFile("file", ".txt", writeFile.getParentFile());
 
                 setFileReader(readFile);
                 setFileWriter(temp);
 
-                for(int j = 0; j < getSize(readFile); j++) {
-                    String line = fileReader.readLine();
-                    if(i < ep.lineNum || i > ep.lineNum + ep.sum - 2) fileWriter.write(line + "\r\n");
+                String line = readLine(readFile);
+                int j = 0;
+                while (line != null) {
+                    if(j < ep.lineNum || j > ep.lineNum + ep.sum)
+                        fileWriter.write(line + "\r\n");
+                    if(j == ep.lineNum + ep.sum) done = true;
+                    j++;
+                    line = fileReader.readLine();
                 }
 
+                fileWriter.close();
+                fileReader.close();
 
+                writeFile.delete();
+                temp.renameTo(writeFile);
+
+                if(done) break;
             }
 
-
-/*
-            reader.close();
-            writer.close();
-
-            writeFile.delete();
-            temp.renameTo(writeFile);
-*/
             return true;
 
         } catch (IOException |NoSuchElementException e) {
@@ -221,14 +234,6 @@ public class RandomAccessDBAgent {
 
     public int getReadFileCount(){
         return readFileCount;
-    }
-
-    public int getFullSize(){
-        int sum = 0;
-        for(int i = 1; i <= filesCount; i++) {
-            sum += getSize(new File(filePath(i)));
-        }
-        return sum;
     }
 
     private static int getSize(File file) {

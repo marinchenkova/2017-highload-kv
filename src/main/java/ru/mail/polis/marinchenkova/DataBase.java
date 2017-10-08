@@ -32,18 +32,18 @@ public class DataBase implements IDataBase{
     public static void main(String[] args) {
         EntryReadWriteAgent agent = new EntryReadWriteAgent();
 
-
-        for(int i = 0; i < 1000; i++){
+/*
+        for(int i = 0; i < 10; i++){
             System.out.println(i);
             agent.writeEntry("KEY_" + i, randomValue(1024));
         }
+*/
+
+        //System.out.println(agent.containsKey("KEY_10"));
+        //System.out.println(Arrays.toString(agent.read("KEY_10")));
 
 
-        System.out.println(agent.containsKey("KEY_100"));
-        System.out.println(Arrays.toString(agent.read("KEY_100")));
-
-
-        //agent.remove("KEY_2");
+        System.out.println(agent.remove("KEY_4"));
 
     }
 

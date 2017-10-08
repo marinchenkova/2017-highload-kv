@@ -1,5 +1,7 @@
 package ru.mail.polis.marinchenkova.entry;
 
+import java.util.NoSuchElementException;
+
 /**
  * @author Marinchenko V. A.
  */
@@ -19,11 +21,11 @@ public class EntryReadWriteAgent {
         entryWriter = new EntryWriter(agent);
     }
 
-    public boolean containsKey(String key) {
+    public boolean containsKey(String key) throws NoSuchElementException  {
         return entryReader.containsKey(key);
     }
 
-    public byte[] read(String key) {
+    public byte[] read(String key) throws NoSuchElementException {
         return entryReader.read(key);
     }
 
@@ -36,7 +38,10 @@ public class EntryReadWriteAgent {
         entryWriter.rewriteEntry(entryReader, new Entry(cnt, key, data));
     }
 
-    public void remove(String key) {
-        //if(entryWriter.remove(entryReader, key)) cnt--;
+    public boolean remove(String key) {
+        if(entryWriter.remove(entryReader, key)) {
+            cnt--;
+            return true;
+        } else return false;
     }
 }

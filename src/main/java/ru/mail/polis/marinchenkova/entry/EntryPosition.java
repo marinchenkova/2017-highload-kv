@@ -20,7 +20,7 @@ public class EntryPosition {
         this.lineNum = lineNum;
         this.keyCount = keyCount;
         this.dataCount = dataCount;
-        sum = keyCount + dataCount + 10;
+        sum = keyCount + dataCount + 7;
         this.key = key;
     }
 }

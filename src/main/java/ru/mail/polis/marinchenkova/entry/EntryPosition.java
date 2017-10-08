@@ -21,6 +21,6 @@ public class EntryPosition {
     public void setBody(int keyCount, int dataCount){
         this.keyCount = keyCount;
         this.dataCount = dataCount;
-        sum = keyCount + dataCount + 7;
+        sum = keyCount + dataCount + 9;
     }
 }

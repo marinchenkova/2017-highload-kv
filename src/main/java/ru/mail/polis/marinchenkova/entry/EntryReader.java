@@ -56,10 +56,8 @@ public class EntryReader {
             else agent.setReaderToBegin();
 
             String line = agent.readLine().trim();
-            int j = 0;
 
             while (line != null) {
-                j++;
 
                 if (keyFound) {
                     if (data && !line.equals(DATA_END)) {

@@ -1,6 +1,7 @@
 package ru.mail.polis.marinchenkova.entry;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.NoSuchElementException;
 
 /**
@@ -33,9 +34,9 @@ public class RandomAccessDBAgent {
 
     public RandomAccessDBAgent(String dataBasePath){
         pathDB = dataBasePath;
-        start = new EntryPosition("", 1, 0);
+        start = new EntryPosition("", 1, -1);
         start.setBody(0, 0);
-        checkFilesCount();
+        checkFilesCount(false);
     }
 
     public void open(String mode) throws IllegalArgumentException, IOException {
@@ -67,7 +68,7 @@ public class RandomAccessDBAgent {
     }
 
     private void readMode() throws IOException {
-        checkFilesCount();
+        checkFilesCount(false);
         if (filesCount == 0) throw new FileNotFoundException("Nothing to read!");
         else {
             readFile = new File(filePath("", 1));
@@ -76,7 +77,7 @@ public class RandomAccessDBAgent {
     }
 
     private void writeMode() throws IOException {
-        checkFilesCount();
+        checkFilesCount(false);
         if (filesCount == 0) filesCount++;
         writeFile = new File(filePath("", filesCount));
 
@@ -120,7 +121,7 @@ public class RandomAccessDBAgent {
     }
 
     public void writeArray(String[] text) {
-        checkFilesCount();
+        checkFilesCount(false);
         writeFileCount = filesCount;
         writeArray(text, "");
     }
@@ -185,7 +186,7 @@ public class RandomAccessDBAgent {
                 File file = new File(filePath("", ++readFileCount));
                 setFileReader(file);
                 line = readLine(readFile);
-                readLineCount = 0;
+                readLineCount = -1;
             }
 
             readLineCount++;
@@ -205,32 +206,47 @@ public class RandomAccessDBAgent {
     public boolean removeEntry(EntryPosition ep){
         try {
             boolean done = false;
+            String tempName = "temp";
+            int strings = 0;
+
 
             for(int i = ep.fileNum; i <= filesCount; i++) {
-                readFile = new File(filePath("", i));
-                writeFile = File.createTempFile("file", ".txt", readFile.getParentFile());
+                File read = new File(filePath("", i));
+                File temp = new File(filePath(tempName, i));
 
-                setFileReader(readFile);
-                setFileWriter(writeFile);
+                setFileReader(read);
+                setFileWriter(temp);
 
+                ArrayList<String> text = new ArrayList<>();
+                int j = 0;
+                int off = strings;
                 String line = readLine(readFile);
-                int j = 1;
+
                 while (line != null) {
-                    if(j < ep.lineNum || j > ep.lineNum + ep.sum +1)
-                        //writeLine(line + "\r\n");
-                    if(j == ep.lineNum + ep.sum) done = true;
+                    if(j + off < ep.lineNum ||
+                            j + off > ep.lineNum + ep.sum) {
+                        text.add(line);
+                    }
+                    strings++;
+
+                    if(j + off == ep.lineNum + ep.sum) done = true;
                     j++;
                     line = readLine(readFile);
                 }
 
+                writeFileCount = i;
+                writeArray(text.toArray(new String[0]), tempName);
+
                 close();
 
-                readFile.delete();
-                writeFile.renameTo(readFile);
+                read.delete();
+                temp.renameTo(readFile);
+
+                if(getSize(read) == 0) read.delete();
 
                 if(done) break;
             }
-
+            checkFilesCount(true);
             return true;
 
         } catch (IOException |NoSuchElementException e) {
@@ -269,10 +285,16 @@ public class RandomAccessDBAgent {
         return  pathDB + "\\" + start + String.valueOf(num) + ".txt";
     }
 
-    private void checkFilesCount(){
+    private void checkFilesCount(boolean rename){
         File db = new File(pathDB);
         if(db.exists()) {
-            filesCount = db.listFiles().length;
+            File files[] = db.listFiles();
+            filesCount = files.length;
+            if(rename) {
+                for(int i = 0; i < filesCount; i++) {
+                    files[i].renameTo(new File(filePath("", i + 1)));
+                }
+            }
         }
     }
 }

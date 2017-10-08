@@ -12,15 +12,15 @@ public class EntryPosition {
     public int sum;
     public String key;
 
-    public EntryPosition(int fileNum) {
+    public EntryPosition(String key, int fileNum, int lineNum) {
+        this.key = key;
         this.fileNum = fileNum;
+        this.lineNum = lineNum;
     }
 
-    public void set(int lineNum, int keyCount, int dataCount, String key){
-        this.lineNum = lineNum;
+    public void setBody(int keyCount, int dataCount){
         this.keyCount = keyCount;
         this.dataCount = dataCount;
         sum = keyCount + dataCount + 7;
-        this.key = key;
     }
 }

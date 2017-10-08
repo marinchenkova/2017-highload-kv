@@ -8,7 +8,7 @@ import java.util.NoSuchElementException;
  */
 public class RandomAccessDBAgent {
 
-    private final static int maxStrings = 3_0;
+    private final static int maxStrings = 1_0;
     public final static String MODE_READ = "r";
     public final static String MODE_WRITE = "w";
     public final static String MODE_FULL = "rw";
@@ -19,9 +19,12 @@ public class RandomAccessDBAgent {
 
     private File writeFile;
     private File readFile;
-    private int writeFileSize;
+
     private int readFileCount;
+    private int readLineCount;
+
     private int writeFileCount = 0;
+    private int writeFileSize;
 
     private EntryPosition start;
 
@@ -30,8 +33,8 @@ public class RandomAccessDBAgent {
 
     public RandomAccessDBAgent(String dataBasePath){
         pathDB = dataBasePath;
-        start = new EntryPosition(1);
-        start.set(0, 0, 0, "");
+        start = new EntryPosition("", 1, 0);
+        start.setBody(0, 0);
         checkFilesCount();
     }
 
@@ -67,7 +70,7 @@ public class RandomAccessDBAgent {
         checkFilesCount();
         if (filesCount == 0) throw new FileNotFoundException("Nothing to read!");
         else {
-            readFile = new File(filePath(1));
+            readFile = new File(filePath("", 1));
             setFileReader(readFile);
         }
     }
@@ -75,10 +78,10 @@ public class RandomAccessDBAgent {
     private void writeMode() throws IOException {
         checkFilesCount();
         if (filesCount == 0) filesCount++;
-        writeFile = new File(filePath(filesCount));
+        writeFile = new File(filePath("", filesCount));
 
         if (writeFile.exists() && getSize(writeFile) >= maxStrings) {
-            writeFile = new File(filePath(++filesCount));
+            writeFile = new File(filePath("", ++filesCount));
         } else if(!writeFile.exists()){
             try {
                 writeFile.createNewFile();
@@ -150,7 +153,11 @@ public class RandomAccessDBAgent {
 
     private void skipReadLines(int lines) {
         try {
-            for(int i = 0; i < lines; i++) readLine(readFile);
+            for(int i = 0; i < lines; i++) {
+                readLineCount++;
+                readLine(readFile);
+            }
+
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -158,8 +165,9 @@ public class RandomAccessDBAgent {
 
     public void setReaderToPosition(EntryPosition pos) {
         readFileCount = pos.fileNum;
+        readLineCount = pos.lineNum;
 
-        File file = new File(filePath(readFileCount));
+        File file = new File(filePath("", readFileCount));
         setFileReader(file);
 
         skipReadLines(pos.lineNum);
@@ -174,10 +182,13 @@ public class RandomAccessDBAgent {
             String line = readLine(readFile);
 
             if(line == null) {
-                File file = new File(filePath(++readFileCount));
+                File file = new File(filePath("", ++readFileCount));
                 setFileReader(file);
                 line = readLine(readFile);
+                readLineCount = 0;
             }
+
+            readLineCount++;
             return line;
 
         } catch (IOException e) {
@@ -196,7 +207,7 @@ public class RandomAccessDBAgent {
             boolean done = false;
 
             for(int i = ep.fileNum; i <= filesCount; i++) {
-                readFile = new File(filePath(i));
+                readFile = new File(filePath("", i));
                 writeFile = File.createTempFile("file", ".txt", readFile.getParentFile());
 
                 setFileReader(readFile);
@@ -232,6 +243,10 @@ public class RandomAccessDBAgent {
         return readFileCount;
     }
 
+    public int getReadLineCount() {
+        return readLineCount;
+    }
+
     private static int getSize(File file) {
         try {
             FileReader fileReader = new FileReader(file);
@@ -250,15 +265,9 @@ public class RandomAccessDBAgent {
         }
     }
 
-    private static String filePath(int num) {
-        return  pathDB + "\\" + String.valueOf(num) + ".txt";
-    }
-
     private static String filePath(String start, int num) {
         return  pathDB + "\\" + start + String.valueOf(num) + ".txt";
     }
-
-
 
     private void checkFilesCount(){
         File db = new File(pathDB);

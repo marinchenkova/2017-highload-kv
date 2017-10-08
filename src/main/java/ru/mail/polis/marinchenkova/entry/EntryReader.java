@@ -69,24 +69,25 @@ public class EntryReader {
 
                     if (line.equals(DATA_BEGIN)) data = true;
                     else if (line.equals(DATA_END)) {
-                        lastPos.set(
-                                j - dataCount - keyCount - 7,
-                                keyCount,
-                                dataCount,
-                                key);
-
+                        lastPos.setBody(keyCount, dataCount);
                         agent.close();
                         return parseData(rawData);
                     }
 
                 } else {
+                    if(line.equals(ENTRY_BEGIN)){
+                        lastPos = new EntryPosition(
+                                key,
+                                agent.getReadFileCount(),
+                                agent.getReadLineCount());
+                    }
+
                     if (data && !line.equals(KEY_END)) {
                         keyCount++;
                         rawKey = rawKey.concat(line);
                     }
 
                     if (line.equals(KEY_BEGIN)) {
-                        lastPos = new EntryPosition(agent.getReadFileCount());
                         rawKey = "";
                         data = true;
                     } else if (line.equals(KEY_END)) {

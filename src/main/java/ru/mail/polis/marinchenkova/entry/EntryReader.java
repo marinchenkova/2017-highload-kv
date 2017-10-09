@@ -29,8 +29,13 @@ public class EntryReader {
     }
 
     public byte[] read(String key) throws NoSuchElementException {
-        if(lastPos != null && lastPos.key.equals(key)) return search(key, true);
-        else return search(key, false);
+        if(lastPos != null && lastPos.key.equals(key)) {
+            lastPos = null;
+            return search(key, true);
+        } else {
+            lastPos = null;
+            return search(key, false);
+        }
     }
 
     public EntryPosition search(String key) throws NoSuchElementException {
@@ -52,7 +57,7 @@ public class EntryReader {
         try {
             agent.open(MODE_READ);
 
-            if(goOn) agent.setReaderToPosition(lastPos);
+            if(goOn && lastPos != null) agent.setReaderToPosition(lastPos);
             else agent.setReaderToBegin();
 
             String line = agent.readLine().trim();

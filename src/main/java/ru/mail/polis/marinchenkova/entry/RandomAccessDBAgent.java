@@ -230,8 +230,7 @@ public class RandomAccessDBAgent {
                 while (line != null) {
                     strings++;
 
-                    if(j + off < ep.lineNum ||
-                            j + off > ep.lineNum + ep.sum) {
+                    if(j + off < ep.lineNum || j + off > ep.lineNum + ep.sum) {
                         text.add(line);
                     }
 
@@ -288,6 +287,8 @@ public class RandomAccessDBAgent {
     }
 
     private String filePath(String start, int num) {
+        String path = pathDB.getAbsolutePath() + "\\" + start + fileNameNumber(num) + ".txt";
+        System.out.println(path);
         return  pathDB.getAbsolutePath() + "\\" + start + fileNameNumber(num) + ".txt";
     }
 

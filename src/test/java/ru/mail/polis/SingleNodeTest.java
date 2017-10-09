@@ -42,19 +42,19 @@ public class SingleNodeTest extends TestBase {
     }
 
     @NotNull
-    private String url(@NotNull final String id) {
+    String url(@NotNull final String id) {
         return "http://localhost:" + port + "/v0/entity?id=" + id;
     }
 
-    private HttpResponse get(@NotNull final String key) throws IOException {
+    HttpResponse get(@NotNull final String key) throws IOException {
         return Request.Get(url(key)).execute().returnResponse();
     }
 
-    private HttpResponse delete(@NotNull final String key) throws IOException {
+    HttpResponse delete(@NotNull final String key) throws IOException {
         return Request.Delete(url(key)).execute().returnResponse();
     }
 
-    private HttpResponse upsert(
+    HttpResponse upsert(
             @NotNull final String key,
             @NotNull final byte[] data) throws IOException {
         return Request.Put(url(key)).bodyByteArray(data).execute().returnResponse();
@@ -121,9 +121,6 @@ public class SingleNodeTest extends TestBase {
         final byte[] value1 = randomValue();
         final String key2 = randomKey();
         final byte[] value2 = randomValue();
-
-        System.out.println("KEY 1 :" + key1);
-        System.out.println("KEY 2 :" + key2);
 
         // Insert 1
         assertEquals(201, upsert(key1, value1).getStatusLine().getStatusCode());

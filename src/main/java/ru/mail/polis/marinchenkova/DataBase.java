@@ -1,38 +1,20 @@
 package ru.mail.polis.marinchenkova;
 
-import org.jetbrains.annotations.NotNull;
-import ru.mail.polis.marinchenkova.entry.Entry;
 import ru.mail.polis.marinchenkova.entry.EntryReadWriteAgent;
-import ru.mail.polis.marinchenkova.entry.EntryReader;
-import ru.mail.polis.marinchenkova.entry.EntryWriter;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.NoSuchElementException;
-import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * @author Marinchenko V. A.
  */
 public class DataBase implements IDataBase{
-    //TODO DataBase
-
-    @NotNull
-    public static String randomKey() {
-        return Long.toHexString(ThreadLocalRandom.current().nextLong());
-    }
-
-    @NotNull
-    public static byte[] randomValue(int bytes) {
-        final byte[] result = new byte[bytes];
-        ThreadLocalRandom.current().nextBytes(result);
-        return result;
-    }
 
     private EntryReadWriteAgent agent;
 
-    public DataBase(){
-        agent = new EntryReadWriteAgent();
+    public DataBase(File pathDB){
+        agent = new EntryReadWriteAgent(pathDB);
     }
 
 
@@ -49,7 +31,7 @@ public class DataBase implements IDataBase{
     }
 
     /**
-     * Добавить значение {@link Value}.
+     * Добавить значение.
      * @param key {@link String} ключ
      * @param data новые данные
      */

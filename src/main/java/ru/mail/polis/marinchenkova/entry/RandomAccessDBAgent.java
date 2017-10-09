@@ -16,7 +16,7 @@ public class RandomAccessDBAgent {
 
     public static int filesCount = 0;
 
-    private static String pathDB;
+    private File pathDB;
 
     private File writeFile;
     private File readFile;
@@ -25,18 +25,24 @@ public class RandomAccessDBAgent {
     private int readLineCount;
 
     private int writeFileCount = 0;
-    private int writeFileSize;
 
     private EntryPosition start;
 
     private FileWriter fileWriter;
     private BufferedReader fileReader;
 
-    public RandomAccessDBAgent(String dataBasePath){
-        pathDB = dataBasePath;
+    public RandomAccessDBAgent(File pathDB){
+        this.pathDB = pathDB;
+        initDirectory();
         start = new EntryPosition("", 1, -1);
         start.setBody(0, 0);
         checkFilesCount(false);
+    }
+
+    private void initDirectory(){
+        if(!pathDB.exists()) {
+            pathDB.mkdir();
+        }
     }
 
     public void open(String mode) throws IllegalArgumentException, IOException {
@@ -131,7 +137,7 @@ public class RandomAccessDBAgent {
             File file = new File(filePath(startFileName, writeFileCount));
             setFileWriter(file);
 
-            writeFileSize = getSize(writeFile);
+            int writeFileSize = getSize(writeFile);
 
             for(String s : text) {
                 if (writeFileSize >= maxStrings) {
@@ -281,8 +287,8 @@ public class RandomAccessDBAgent {
         }
     }
 
-    private static String filePath(String start, int num) {
-        return  pathDB + "\\" + start + fileNameNumber(num) + ".txt";
+    private String filePath(String start, int num) {
+        return  pathDB.getAbsolutePath() + "\\" + start + fileNameNumber(num) + ".txt";
     }
 
     private static String fileNameNumber(int num){
@@ -290,9 +296,8 @@ public class RandomAccessDBAgent {
     }
 
     private void checkFilesCount(boolean rename){
-        File db = new File(pathDB);
-        if(db.exists()) {
-            File files[] = db.listFiles();
+        if(pathDB.exists()) {
+            File files[] = pathDB.listFiles();
             filesCount = files.length;
             if(rename) {
                 for(int i = 0; i < filesCount; i++) {

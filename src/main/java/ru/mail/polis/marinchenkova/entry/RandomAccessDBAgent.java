@@ -9,7 +9,7 @@ import java.util.NoSuchElementException;
  */
 public class RandomAccessDBAgent {
 
-    private final static int maxStrings = 1_0;
+    private final static int maxStrings = 10_000;
     public final static String MODE_READ = "r";
     public final static String MODE_WRITE = "w";
     public final static String MODE_FULL = "rw";
@@ -209,8 +209,7 @@ public class RandomAccessDBAgent {
             String tempName = "temp";
             int strings = 0;
 
-
-            for(int i = ep.fileNum; i <= filesCount; i++) {
+            for (int i = ep.fileNum; i <= filesCount; i++) {
                 File read = new File(filePath("", i));
                 File temp = new File(filePath(tempName, i));
 
@@ -223,11 +222,12 @@ public class RandomAccessDBAgent {
                 String line = readLine(readFile);
 
                 while (line != null) {
+                    strings++;
+
                     if(j + off < ep.lineNum ||
                             j + off > ep.lineNum + ep.sum) {
                         text.add(line);
                     }
-                    strings++;
 
                     if(j + off == ep.lineNum + ep.sum) done = true;
                     j++;
@@ -282,7 +282,11 @@ public class RandomAccessDBAgent {
     }
 
     private static String filePath(String start, int num) {
-        return  pathDB + "\\" + start + String.valueOf(num) + ".txt";
+        return  pathDB + "\\" + start + fileNameNumber(num) + ".txt";
+    }
+
+    private static String fileNameNumber(int num){
+        return String.valueOf(1_000_000 + num).substring(1);
     }
 
     private void checkFilesCount(boolean rename){

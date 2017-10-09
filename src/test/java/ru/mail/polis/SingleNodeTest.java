@@ -122,6 +122,9 @@ public class SingleNodeTest extends TestBase {
         final String key2 = randomKey();
         final byte[] value2 = randomValue();
 
+        System.out.println("KEY 1 :" + key1);
+        System.out.println("KEY 2 :" + key2);
+
         // Insert 1
         assertEquals(201, upsert(key1, value1).getStatusLine().getStatusCode());
 

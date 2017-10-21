@@ -34,8 +34,8 @@ public class RandomAccessDBAgent {
     public RandomAccessDBAgent(File pathDB){
         this.pathDB = pathDB;
         initDirectory();
-        start = new EntryPosition("", 1, -1);
-        start.setBody(0, 0);
+        start = new EntryPosition(1, -1);
+        start.setBody("", 0, 0);
         checkFilesCount(false);
     }
 

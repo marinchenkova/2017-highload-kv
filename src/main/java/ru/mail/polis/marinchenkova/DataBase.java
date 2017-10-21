@@ -1,5 +1,7 @@
 package ru.mail.polis.marinchenkova;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import ru.mail.polis.marinchenkova.entry.EntryReadWriteAgent;
 
 import java.io.File;
@@ -11,12 +13,11 @@ import java.util.NoSuchElementException;
  */
 public class DataBase implements IDataBase{
 
-    private EntryReadWriteAgent agent;
+    private final EntryReadWriteAgent agent;
 
-    public DataBase(File pathDB){
-        agent = new EntryReadWriteAgent(pathDB);
+    public DataBase(@NotNull final File pathDB){
+        this.agent = new EntryReadWriteAgent(pathDB);
     }
-
 
     /**
      * Вернуть значение по ключу, если он есть,
@@ -25,8 +26,9 @@ public class DataBase implements IDataBase{
      * @return данные
      * @throws NoSuchElementException если такого ключа нет
      */
-    public byte[] get(String key) throws NoSuchElementException, IOException{
-        if(agent.containsKey(key)) return agent.read(key);
+    @Nullable
+    public byte[] get(@NotNull final String key) throws IOException, NoSuchElementException {
+        if (this.agent.containsKey(key)) return this.agent.read(key);
         else throw new NoSuchElementException("Can not return: no such element");
     }
 
@@ -35,10 +37,11 @@ public class DataBase implements IDataBase{
      * @param key {@link String} ключ
      * @param data новые данные
      */
-    public void put(String key, byte[] data) throws IOException {
-        if(agent.containsKey(key)) {
-            agent.rewriteEntry(key, data);
-        } else agent.writeEntry(key, data);
+    public void upsert(@NotNull final String key,
+                       final byte[] data) throws IOException {
+        if (this.agent.containsKey(key)) {
+            this.agent.rewriteEntry(key, data);
+        } else this.agent.writeEntry(key, data);
     }
 
     /**
@@ -46,8 +49,8 @@ public class DataBase implements IDataBase{
      * ничего не делать, если значения нет.
      * @param key {@link String} ключ
      */
-    public void delete(String key) throws IOException {
-       agent.remove(key);
+    public void remove(@NotNull final String key) throws IOException {
+        this.agent.remove(key);
     }
 
 }

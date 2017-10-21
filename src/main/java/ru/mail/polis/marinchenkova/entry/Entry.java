@@ -6,15 +6,12 @@ import java.util.Arrays;
  * Запись в базу данных. Структура:
  *
  * <entry>
- *     <num>
- *         1
- *     </num>
- *     <key>
- *         KEY
- *     </key>
- *     <data>
- *         DATA
- *     </data>
+ * <key>
+ * KEY
+ * </key>
+ * <data>
+ * DATA
+ * </data>
  * </entry>
  *
  * @author Marinchenko V. A.
@@ -24,122 +21,75 @@ public class Entry {
     final static String ENTRY_BEGIN = "<entry>";
     final static String ENTRY_END = "</entry>";
 
-    final static String NUM_BEGIN = "<num>";
-    final static String NUM_END = "</num>";
-
     final static String KEY_BEGIN = "<key>";
     final static String KEY_END = "</key>";
 
     final static String DATA_BEGIN = "<data>";
     final static String DATA_END = "</data>";
 
-    final static String SPACE4 = "    ";
-    final static String SPACE8 = "        ";
+    final static int tagsNum = 6;
+    private final int helpStringsNum = tagsNum + 1;
 
-
-
-    private final int num;
     private final String key;
     private final byte[] data;
 
-    private String[] entryStringArray;
-    private String[] keyStringArray;
-    private String[] dataStringArray;
-
-
-    public Entry(int num, String key, byte[] data){
-        this.num = num;
+    public Entry(String key, byte[] data){
         this.key = key;
         this.data= data;
-
-        fillArrays();
     }
 
-    public void fillArrays(){
+    private static String[] toStringArray(String text, byte[] data){
+        boolean isString = text != null;
 
-        keyStringArray = keyArray();
-        dataStringArray = dataArray();
-        entryStringArray = entryArray();
-    }
-
-    public static String[] toStringArray(byte[] text){
-        int size = text.length / 100 + 1;
+        int size = (isString ? text.length() : data.length) / 100 + 1;
         String dataArray[] = new String[size];
 
         for(int i = 0; i < size - 1; i++){
-            dataArray[i] = SPACE8 + Arrays.toString(
-                    Arrays.copyOfRange(text, i * 100, (i + 1)*100));
+            if(isString) dataArray[i] = text.substring(i * 100, (i + 1)*100 - 1);
+            else dataArray[i] = Arrays.toString(Arrays.copyOfRange(data, i * 100, (i + 1)*100));
         }
 
-        dataArray[size - 1] = SPACE8 + Arrays.toString(
-                Arrays.copyOfRange(text, (size - 1)*100, text.length));
+        if(isString) dataArray[size - 1] = text.substring((size - 1)*100, text.length());
+        else dataArray[size - 1] = Arrays.toString(Arrays.copyOfRange(data, (size - 1)*100, data.length));
 
         return dataArray;
     }
 
-    public static String[] toStringArray(String text){
-        int size = text.length() / 100 + 1;
-        String dataArray[] = new String[size];
-
-
-        for(int i = 0; i < size - 1; i++){
-            dataArray[i] = SPACE8 + text.substring(i * 100, (i + 1)*100 - 1);
-        }
-
-        dataArray[size - 1] = SPACE8 + text.substring((size - 1)*100, text.length());
-
-        return dataArray;
+    public static String[] toStringArray(byte data[]) {
+        return toStringArray(null, data);
     }
+
+    public static String[] toStringArray(String text) {
+        return toStringArray(text, null);
+    }
+
 
     public String[] entryArray(){
-        if(entryStringArray == null) {
-            if(keyStringArray == null){
-                keyStringArray = keyArray();
-            } else if (dataStringArray == null) {
-                dataStringArray = dataArray();
-            }
+        String[] keyStringArray = toStringArray(key);
+        String[] dataStringArray = toStringArray(data);
 
-            String[] allArray = new String[10 + keyStringArray.length + dataStringArray.length];
+        String[] allArray = new String[helpStringsNum + keyStringArray.length + dataStringArray.length];
 
-            allArray[0] = ENTRY_BEGIN;
-            allArray[1] = SPACE4 + NUM_BEGIN;
-            allArray[2] = SPACE8 + String.valueOf(num);
-            allArray[3] = SPACE4 + NUM_END;
-            allArray[4] = SPACE4 + KEY_BEGIN;
-            int p = 5;
+        allArray[0] = ENTRY_BEGIN;
+        allArray[1] = KEY_BEGIN;
+        int p = 2;
 
-            for(int i = 0; i < keyStringArray.length; i++){
-                allArray[p++] = keyStringArray[i];
-            }
-
-            allArray[p++] = SPACE4 + KEY_END;
-            allArray[p++] = SPACE4 + DATA_BEGIN;
-
-            for(int i = 0; i < dataStringArray.length; i++){
-                allArray[p++] = dataStringArray[i];
-            }
-
-            allArray[p++] = SPACE4 + DATA_END;
-            allArray[p++] = ENTRY_END;
-            allArray[p] = "";
-
-            entryStringArray = allArray;
+        for(int i = 0; i < keyStringArray.length; i++){
+            allArray[p++] = keyStringArray[i];
         }
-        return entryStringArray;
-    }
 
-    public String[] dataArray(){
-        if(dataStringArray == null) return toStringArray(data);
-        else return dataStringArray;
-    }
+        allArray[p++] = KEY_END;
+        allArray[p++] = DATA_BEGIN;
 
-    public String[] keyArray(){
-        if(keyStringArray == null) return toStringArray(key);
-        else return keyStringArray;
-    }
+        for(int i = 0; i < dataStringArray.length; i++){
+            allArray[p++] = dataStringArray[i];
+        }
 
-    public int getNum(){
-        return num;
+        allArray[p++] = DATA_END;
+        allArray[p++] = ENTRY_END;
+        allArray[p] = "";
+
+        return allArray;
     }
 
     public String getKey(){

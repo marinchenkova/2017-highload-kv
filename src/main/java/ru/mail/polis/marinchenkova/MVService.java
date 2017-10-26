@@ -1,5 +1,6 @@
 package ru.mail.polis.marinchenkova;
 
+import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -7,7 +8,6 @@ import ru.mail.polis.KVService;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.NoSuchElementException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,53 +37,97 @@ public class MVService implements KVService {
         this.server = HttpServer.create(new InetSocketAddress(port), 0);
 
         //Status context
-        this.server.createContext(STATUS, httpExchange -> {
-            String response = ONLINE;
-            httpExchange.sendResponseHeaders(200, response.length());
-            httpExchange.getResponseBody().write(response.getBytes());
-            httpExchange.close();
+        this.server.createContext(STATUS, http -> {
+            try {
+                statusQuery(http);
+            } catch (IOException e) {
+                http.close();
+            }
         });
 
         //Entity context
-        this.server.createContext(ENTITY, httpExchange -> {
-            String id = idFromQuery(httpExchange.getRequestURI().getQuery());
-            if ("".equals(id) || id == null) httpExchange.sendResponseHeaders(400, 0);
+        this.server.createContext(ENTITY, http -> {
+            String id = idFromQuery(http.getRequestURI().getQuery());
+
+            if ("".equals(id) || id == null) http.sendResponseHeaders(400, 0);
             else {
-                String method = httpExchange.getRequestMethod();
+                String method = http.getRequestMethod();
                 switch (method) {
                     case GET:
                         try {
-                            byte[] data = this.dataBase.get(id);
-                            httpExchange.sendResponseHeaders(200, data.length);
-                            httpExchange.getResponseBody().write(data);
+                            getQuery(http, id);
                         } catch (IOException e) {
-                            httpExchange.sendResponseHeaders(404, 0);
+                            send404Closed(http);
                         }
                         break;
 
                     case PUT:
-                        int available = httpExchange.getRequestBody().available();
-                        byte[] data = new byte[available];
-
-                        httpExchange.getRequestBody().read(data);
-
-                        this.dataBase.upsert(id, data);
-                        httpExchange.sendResponseHeaders(201, 0);
+                        try {
+                            putQuery(http, id);
+                        } catch (IOException e) {
+                            http.close();
+                        }
                         break;
 
                     case DELETE:
-                        this.dataBase.remove(id);
-                        httpExchange.sendResponseHeaders(202, 0);
+                        try {
+                            deleteQuery(http, id);
+                        } catch (IOException e) {
+                            http.close();
+                        }
                         break;
 
                     default:
-                        //HTTP: Method not allowed
-                        httpExchange.sendResponseHeaders(405, 0);
+                        try {
+                            unknownQuery(http);
+                        } catch (IOException e) {
+                            http.close();
+                        }
                         break;
                 }
             }
-            httpExchange.close();
+            http.close();
         });
+    }
+
+    private void send404Closed(@NotNull final HttpExchange http) throws IOException {
+        http.sendResponseHeaders(404, 0);
+        http.close();
+    }
+
+    private void statusQuery(@NotNull final HttpExchange http) throws IOException {
+        String response = ONLINE;
+        http.sendResponseHeaders(200, response.length());
+        http.getResponseBody().write(response.getBytes());
+        http.close();
+    }
+
+    private void getQuery(@NotNull final HttpExchange http,
+                          @NotNull final String id) throws IOException {
+        byte[] data = this.dataBase.get(id);
+        http.sendResponseHeaders(200, data.length);
+        http.getResponseBody().write(data);
+    }
+
+    private void putQuery(@NotNull final HttpExchange http,
+                          @NotNull final String id) throws IOException {
+        int available = http.getRequestBody().available();
+        byte[] data = new byte[available];
+        http.getRequestBody().read(data);
+
+        this.dataBase.upsert(id, data);
+        http.sendResponseHeaders(201, 0);
+    }
+
+    private void deleteQuery(@NotNull final HttpExchange http,
+                             @NotNull final String id) throws IOException {
+        this.dataBase.remove(id);
+        http.sendResponseHeaders(202, 0);
+    }
+
+    private void unknownQuery(@NotNull final HttpExchange http) throws IOException {
+        //HTTP: Method not allowed
+        http.sendResponseHeaders(405, 0);
     }
 
     /**

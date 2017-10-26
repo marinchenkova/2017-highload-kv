@@ -56,7 +56,7 @@ public class MVService implements KVService {
                             byte[] data = this.dataBase.get(id);
                             httpExchange.sendResponseHeaders(200, data.length);
                             httpExchange.getResponseBody().write(data);
-                        } catch (NoSuchElementException | IOException e) {
+                        } catch (IOException e) {
                             httpExchange.sendResponseHeaders(404, 0);
                         }
                         break;

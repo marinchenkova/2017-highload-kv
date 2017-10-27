@@ -1,6 +1,7 @@
 package ru.mail.polis.marinchenkova;
 
 import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.polis.KVService;
@@ -37,13 +38,7 @@ public class MVService implements KVService {
         this.server = HttpServer.create(new InetSocketAddress(port), 0);
 
         //Status context
-        this.server.createContext(STATUS, http -> {
-            try {
-                statusQuery(http);
-            } catch (IOException e) {
-                http.close();
-            }
-        });
+        this.server.createContext(STATUS, this::statusQuery);
 
         //Entity context
         this.server.createContext(ENTITY, http -> {
@@ -55,35 +50,19 @@ public class MVService implements KVService {
                 String method = http.getRequestMethod();
                 switch (method) {
                     case GET:
-                        try {
-                            getQuery(http, query.id);
-                        } catch (IOException e) {
-                            failedQuery(http, query.id, method);
-                        }
+                        getQuery(http, query.id);
                         break;
 
                     case PUT:
-                        try {
-                            putQuery(http, query.id);
-                        } catch (IOException e) {
-                            failedQuery(http, query.id, method);
-                        }
+                        putQuery(http, query.id);
                         break;
 
                     case DELETE:
-                        try {
-                            deleteQuery(http, query.id);
-                        } catch (IOException e) {
-                            failedQuery(http, query.id, method);
-                        }
+                        deleteQuery(http, query.id);
                         break;
 
                     default:
-                        try {
-                            unknownQuery(http);
-                        } catch (IOException e) {
-                            failedQuery(http, query.id, method);
-                        }
+                        unknownQuery(http);
                         break;
                 }
             }
@@ -91,50 +70,76 @@ public class MVService implements KVService {
         });
     }
 
-    private void statusQuery(@NotNull final HttpExchange http) throws IOException {
-        String response = ONLINE;
-        http.sendResponseHeaders(200, response.length());
-        http.getResponseBody().write(response.getBytes());
-        http.close();
+    private void statusQuery(@NotNull final HttpExchange http) {
+        try {
+            String response = ONLINE;
+            http.sendResponseHeaders(200, response.length());
+            http.getResponseBody().write(response.getBytes());
+            http.close();
+        } catch (IOException e) {
+            http.close();
+        }
     }
 
     private void getQuery(@NotNull final HttpExchange http,
-                          @NotNull final String id) throws IOException {
-        byte[] data = this.dataBase.get(id);
-        if (data != null) {
-            http.sendResponseHeaders(200, data.length);
-            http.getResponseBody().write(data);
-        } else {
-            http.sendResponseHeaders(404, 0);
+                          @NotNull final String id) {
+        try {
+            byte[] data = this.dataBase.get(id);
+            if (data != null) {
+                http.sendResponseHeaders(200, data.length);
+                http.getResponseBody().write(data);
+            } else {
+                http.sendResponseHeaders(404, 0);
+            }
+
+        } catch (IOException e) {
+            failedQuery(http, id);
         }
     }
 
     private void putQuery(@NotNull final HttpExchange http,
-                          @NotNull final String id) throws IOException {
-        int available = http.getRequestBody().available();
-        byte[] data = new byte[available];
-        http.getRequestBody().read(data);
+                          @NotNull final String id) {
+        try {
+            int available = http.getRequestBody().available();
+            byte[] data = new byte[available];
+            http.getRequestBody().read(data);
 
-        this.dataBase.upsert(id, data);
-        http.sendResponseHeaders(201, 0);
+            this.dataBase.upsert(id, data);
+            http.sendResponseHeaders(201, 0);
+
+        } catch (IOException e) {
+            failedQuery(http, id);
+        }
     }
 
     private void deleteQuery(@NotNull final HttpExchange http,
-                             @NotNull final String id) throws IOException {
-        this.dataBase.remove(id);
-        http.sendResponseHeaders(202, 0);
+                             @NotNull final String id) {
+        try {
+            this.dataBase.remove(id);
+            http.sendResponseHeaders(202, 0);
+
+        } catch (IOException e) {
+            failedQuery(http, id);
+        }
     }
 
-    private void unknownQuery(@NotNull final HttpExchange http) throws IOException {
-        http.sendResponseHeaders(405, 0);
+    private void unknownQuery(@NotNull final HttpExchange http) {
+        try {
+            http.sendResponseHeaders(405, 0);
+        } catch (IOException e) {
+            failedQuery(http, "");
+        }
     }
 
     private void failedQuery(@NotNull final HttpExchange http,
-                             @NotNull final String id,
-                             @NotNull final String method) throws IOException {
-        String response = method + " " + id + " failed";
-        http.getResponseBody().write(response.getBytes());
-        http.sendResponseHeaders(504, response.length());
+                             @NotNull final String id) {
+        try {
+            String response = http.getRequestMethod() + " " + id + " failed";
+            http.getResponseBody().write(response.getBytes());
+            http.sendResponseHeaders(504, response.length());
+        } catch (IOException e) {
+            http.close();
+        }
     }
 
     @Override

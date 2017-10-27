@@ -1,7 +1,6 @@
 package ru.mail.polis.marinchenkova;
 
 import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.polis.KVService;
@@ -102,7 +101,11 @@ public class MVService implements KVService {
         try {
             int available = http.getRequestBody().available();
             byte[] data = new byte[available];
-            http.getRequestBody().read(data);
+
+            int r = http.getRequestBody().read(data);
+            if(r != data.length) {
+                if(r != -1) throw new IOException("Can't read " + id + " in one go!");
+            }
 
             this.dataBase.upsert(id, data);
             http.sendResponseHeaders(201, 0);

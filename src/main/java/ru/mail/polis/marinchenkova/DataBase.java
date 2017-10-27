@@ -29,8 +29,8 @@ public class DataBase implements IDataBase{
         final File file = getFile(key);
         try (InputStream fileInputStream = new FileInputStream(file)) {
             final byte data[] = new byte[fileInputStream.available()];
-            if (fileInputStream.read(data) != data.length) {
-                throw new IOException("Can't read file \"" + file.getName() + "\" at 1 go!");
+            if(fileInputStream.read(data) != data.length) {
+                throw new IOException("Can't read " + file.getName() + " at one go!");
             }
             return data;
         } catch (IOException e) {

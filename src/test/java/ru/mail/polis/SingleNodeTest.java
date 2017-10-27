@@ -48,15 +48,15 @@ public class SingleNodeTest extends TestBase {
         return endpoint + "/v0/entity?id=" + id;
     }
 
-    HttpResponse get(@NotNull final String key) throws IOException {
+    private HttpResponse get(@NotNull final String key) throws IOException {
         return Request.Get(url(key)).execute().returnResponse();
     }
 
-    HttpResponse delete(@NotNull final String key) throws IOException {
+    private HttpResponse delete(@NotNull final String key) throws IOException {
         return Request.Delete(url(key)).execute().returnResponse();
     }
 
-    HttpResponse upsert(
+    private HttpResponse upsert(
             @NotNull final String key,
             @NotNull final byte[] data) throws IOException {
         return Request.Put(url(key)).bodyByteArray(data).execute().returnResponse();

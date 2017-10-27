@@ -8,6 +8,7 @@ import ru.mail.polis.marinchenkova.util.Query;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Set;
 
 /**
  * @author Marinchenko V. A.
@@ -30,7 +31,8 @@ public class MVService implements KVService {
 
 
     public MVService(final int port,
-                     @NotNull final IDataBase dBase) throws IOException {
+                     @NotNull final IDataBase dBase,
+                     @NotNull final Set<String> topology) throws IOException {
         this.dataBase = dBase;
         this.server = HttpServer.create(new InetSocketAddress(port), 0);
 
@@ -123,9 +125,6 @@ public class MVService implements KVService {
     private void unknownQuery(@NotNull final HttpExchange http) throws IOException {
         http.sendResponseHeaders(405, 0);
     }
-
-
-
 
     @Override
     public void start() {

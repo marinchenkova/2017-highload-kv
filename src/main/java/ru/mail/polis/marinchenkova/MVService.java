@@ -3,21 +3,16 @@ package ru.mail.polis.marinchenkova;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import ru.mail.polis.KVService;
+import ru.mail.polis.marinchenkova.util.Query;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * @author Marinchenko V. A.
  */
 public class MVService implements KVService {
-
-    private final static Pattern IDD = Pattern.compile("id=.*");
-    private final static Pattern ID = Pattern.compile("id=");
 
     private final static String ENTITY = "/v0/entity";
     private final static String STATUS = "/v0/status";
@@ -27,7 +22,10 @@ public class MVService implements KVService {
     private final static String PUT = "PUT";
     private final static String DELETE = "DELETE";
 
+    @NotNull
     private final HttpServer server;
+
+    @NotNull
     private final IDataBase dataBase;
 
 
@@ -47,23 +45,25 @@ public class MVService implements KVService {
 
         //Entity context
         this.server.createContext(ENTITY, http -> {
-            String id = idFromQuery(http.getRequestURI().getQuery());
+            Query query = new Query(http.getRequestURI().getQuery());
 
-            if ("".equals(id) || id == null) http.sendResponseHeaders(400, 0);
+            if (query.id == null) http.sendResponseHeaders(404, 0);
+            else if (query.id.isEmpty()) http.sendResponseHeaders(400, 0);
             else {
                 String method = http.getRequestMethod();
                 switch (method) {
                     case GET:
                         try {
-                            getQuery(http, id);
+                            getQuery(http, query.id);
                         } catch (IOException e) {
-                            send404Closed(http);
+                            System.err.println(e.getMessage());
+                            http.sendResponseHeaders(404, 0);
                         }
                         break;
 
                     case PUT:
                         try {
-                            putQuery(http, id);
+                            putQuery(http, query.id);
                         } catch (IOException e) {
                             http.close();
                         }
@@ -71,7 +71,7 @@ public class MVService implements KVService {
 
                     case DELETE:
                         try {
-                            deleteQuery(http, id);
+                            deleteQuery(http, query.id);
                         } catch (IOException e) {
                             http.close();
                         }
@@ -88,11 +88,6 @@ public class MVService implements KVService {
             }
             http.close();
         });
-    }
-
-    private void send404Closed(@NotNull final HttpExchange http) throws IOException {
-        http.sendResponseHeaders(404, 0);
-        http.close();
     }
 
     private void statusQuery(@NotNull final HttpExchange http) throws IOException {
@@ -126,24 +121,10 @@ public class MVService implements KVService {
     }
 
     private void unknownQuery(@NotNull final HttpExchange http) throws IOException {
-        //HTTP: Method not allowed
         http.sendResponseHeaders(405, 0);
     }
 
-    /**
-     * Извлечение id из запроса.
-     * @param query запрос
-     * @return {@link String} id или пустую строку, если запрос пустой
-     */
-    @Nullable
-    public static String idFromQuery(@NotNull final String query) {
-        Matcher matcher = IDD.matcher(query);
 
-        if (matcher.matches()) {
-            matcher = ID.matcher(query);
-            return matcher.replaceFirst("");
-        } else return null;
-    }
 
 
     @Override

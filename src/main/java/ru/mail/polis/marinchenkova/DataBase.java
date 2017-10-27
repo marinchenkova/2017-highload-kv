@@ -1,6 +1,7 @@
 package ru.mail.polis.marinchenkova;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
 
@@ -23,14 +24,17 @@ public class DataBase implements IDataBase{
      * @return данные, null если не получилось извлечь данные
      * @throws IOException если файл не может быть прочитан
      */
+    @Nullable
     public byte[] get(@NotNull final String key) throws IOException {
         final File file = getFile(key);
         try (InputStream fileInputStream = new FileInputStream(file)) {
-            final byte data[]= new byte[fileInputStream.available()];
+            final byte data[] = new byte[fileInputStream.available()];
             if (fileInputStream.read(data) != data.length) {
                 throw new IOException("Can't read file \"" + file.getName() + "\" at 1 go!");
             }
             return data;
+        } catch (IOException e) {
+            return null;
         }
     }
 

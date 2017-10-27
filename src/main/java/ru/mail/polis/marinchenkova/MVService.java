@@ -58,8 +58,7 @@ public class MVService implements KVService {
                         try {
                             getQuery(http, query.id);
                         } catch (IOException e) {
-                            System.err.println(e.getMessage());
-                            http.sendResponseHeaders(404, 0);
+                            failedQuery(http, query.id, method);
                         }
                         break;
 
@@ -67,7 +66,7 @@ public class MVService implements KVService {
                         try {
                             putQuery(http, query.id);
                         } catch (IOException e) {
-                            http.close();
+                            failedQuery(http, query.id, method);
                         }
                         break;
 
@@ -75,7 +74,7 @@ public class MVService implements KVService {
                         try {
                             deleteQuery(http, query.id);
                         } catch (IOException e) {
-                            http.close();
+                            failedQuery(http, query.id, method);
                         }
                         break;
 
@@ -83,7 +82,7 @@ public class MVService implements KVService {
                         try {
                             unknownQuery(http);
                         } catch (IOException e) {
-                            http.close();
+                            failedQuery(http, query.id, method);
                         }
                         break;
                 }
@@ -102,8 +101,12 @@ public class MVService implements KVService {
     private void getQuery(@NotNull final HttpExchange http,
                           @NotNull final String id) throws IOException {
         byte[] data = this.dataBase.get(id);
-        http.sendResponseHeaders(200, data.length);
-        http.getResponseBody().write(data);
+        if (data != null) {
+            http.sendResponseHeaders(200, data.length);
+            http.getResponseBody().write(data);
+        } else {
+            http.sendResponseHeaders(404, 0);
+        }
     }
 
     private void putQuery(@NotNull final HttpExchange http,
@@ -124,6 +127,14 @@ public class MVService implements KVService {
 
     private void unknownQuery(@NotNull final HttpExchange http) throws IOException {
         http.sendResponseHeaders(405, 0);
+    }
+
+    private void failedQuery(@NotNull final HttpExchange http,
+                             @NotNull final String id,
+                             @NotNull final String method) throws IOException {
+        String response = method + " " + id + " failed";
+        http.getResponseBody().write(response.getBytes());
+        http.sendResponseHeaders(504, response.length());
     }
 
     @Override

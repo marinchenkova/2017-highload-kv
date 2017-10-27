@@ -1,5 +1,7 @@
 package ru.mail.polis.marinchenkova;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.io.IOException;
 import java.util.NoSuchElementException;
 
@@ -7,7 +9,8 @@ import java.util.NoSuchElementException;
  * @author Marinchenko V. A.
  */
 public interface IDataBase {
-    byte[] get(String key) throws NoSuchElementException, IOException;
-    void upsert(String key, byte[] data) throws IOException;
-    void remove(String key) throws IOException;
+    byte[] get(@NotNull final String key) throws IOException;
+    void upsert(@NotNull final String key,
+                @NotNull final byte[] data) throws IOException;
+    void remove(@NotNull final String key) throws IOException;
 }

@@ -6,9 +6,11 @@ import org.apache.http.HttpStatus;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.polis.KVService;
 import ru.mail.polis.marinchenkova.util.Query;
+import ru.mail.polis.marinchenkova.util.TopologyAgent;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
@@ -25,24 +27,30 @@ public class MVService implements KVService {
     private final static String DELETE = "DELETE";
 
     @NotNull
+    private final Set<HttpServer> allNodes = new LinkedHashSet<>();
+    @NotNull
     private final HttpServer server;
-
     @NotNull
     private final IDataBase dataBase;
+    @NotNull
+    private final TopologyAgent topAgent;
 
 
     public MVService(final int port,
-                     @NotNull final IDataBase dBase,
+                     @NotNull final IDataBase dataBase,
                      @NotNull final Set<String> topology) throws IOException {
-        this.dataBase = dBase;
+        this.dataBase = dataBase;
+        this.topAgent = new TopologyAgent(topology);
         this.server = HttpServer.create(new InetSocketAddress(port), 0);
+        this.allNodes.addAll(this.topAgent.getServers());
 
+        
         //Status context
         this.server.createContext(STATUS, this::statusQuery);
 
         //Entity context
         this.server.createContext(ENTITY, http -> {
-            final Query query = new Query(http.getRequestURI().getQuery(), 1);
+            final Query query = new Query(http.getRequestURI().getQuery(), topAgent.from);
 
             if (query.id == null) http.sendResponseHeaders(HttpStatus.SC_NOT_FOUND, 0);
             else if (query.id.isEmpty()) http.sendResponseHeaders(HttpStatus.SC_BAD_REQUEST, 0);

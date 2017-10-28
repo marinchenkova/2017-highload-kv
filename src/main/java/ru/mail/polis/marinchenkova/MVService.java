@@ -2,6 +2,7 @@ package ru.mail.polis.marinchenkova;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import org.apache.http.HttpStatus;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.polis.KVService;
 import ru.mail.polis.marinchenkova.util.Query;
@@ -43,8 +44,8 @@ public class MVService implements KVService {
         this.server.createContext(ENTITY, http -> {
             Query query = new Query(http.getRequestURI().getQuery());
 
-            if (query.id == null) http.sendResponseHeaders(404, 0);
-            else if (query.id.isEmpty()) http.sendResponseHeaders(400, 0);
+            if (query.id == null) http.sendResponseHeaders(HttpStatus.SC_NOT_FOUND, 0);
+            else if (query.id.isEmpty()) http.sendResponseHeaders(HttpStatus.SC_BAD_REQUEST, 0);
             else {
                 String method = http.getRequestMethod();
                 switch (method) {
@@ -72,7 +73,7 @@ public class MVService implements KVService {
     private void statusQuery(@NotNull final HttpExchange http) {
         try {
             String response = ONLINE;
-            http.sendResponseHeaders(200, response.length());
+            http.sendResponseHeaders(HttpStatus.SC_OK, response.length());
             http.getResponseBody().write(response.getBytes());
             http.close();
         } catch (IOException e) {
@@ -85,10 +86,10 @@ public class MVService implements KVService {
         try {
             byte[] data = this.dataBase.get(id);
             if (data != null) {
-                http.sendResponseHeaders(200, data.length);
+                http.sendResponseHeaders(HttpStatus.SC_OK, data.length);
                 http.getResponseBody().write(data);
             } else {
-                http.sendResponseHeaders(404, 0);
+                http.sendResponseHeaders(HttpStatus.SC_NOT_FOUND, 0);
             }
 
         } catch (IOException e) {
@@ -103,12 +104,12 @@ public class MVService implements KVService {
             byte[] data = new byte[available];
 
             int r = http.getRequestBody().read(data);
-            if(r != data.length) {
-                if(r != -1) throw new IOException("Can't read " + id + " in one go!");
+            if(r != data.length && r != -1) {
+                throw new IOException("Can't read " + id + " in one go!");
             }
 
             this.dataBase.upsert(id, data);
-            http.sendResponseHeaders(201, 0);
+            http.sendResponseHeaders(HttpStatus.SC_CREATED, 0);
 
         } catch (IOException e) {
             failedQuery(http, id);
@@ -119,7 +120,7 @@ public class MVService implements KVService {
                              @NotNull final String id) {
         try {
             this.dataBase.remove(id);
-            http.sendResponseHeaders(202, 0);
+            http.sendResponseHeaders(HttpStatus.SC_ACCEPTED, 0);
 
         } catch (IOException e) {
             failedQuery(http, id);
@@ -128,7 +129,7 @@ public class MVService implements KVService {
 
     private void unknownQuery(@NotNull final HttpExchange http) {
         try {
-            http.sendResponseHeaders(405, 0);
+            http.sendResponseHeaders(HttpStatus.SC_METHOD_NOT_ALLOWED, 0);
         } catch (IOException e) {
             failedQuery(http, "");
         }
@@ -139,7 +140,7 @@ public class MVService implements KVService {
         try {
             String response = http.getRequestMethod() + " " + id + " failed";
             http.getResponseBody().write(response.getBytes());
-            http.sendResponseHeaders(504, response.length());
+            http.sendResponseHeaders(HttpStatus.SC_INTERNAL_SERVER_ERROR, response.length());
         } catch (IOException e) {
             http.close();
         }

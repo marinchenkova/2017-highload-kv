@@ -33,10 +33,10 @@ public class Query {
                 ack = defaultAck;
                 from = defaultFrom;
             } else {
-                String strs[] = query.split("id=|&replicas=|\\/");
-                id = strs[0];
-                ack = Integer.parseInt(strs[1]);
-                from = Integer.parseInt(strs[2]);
+                String strs[] = query.split("id=|&replicas=|/");
+                id = strs[1];
+                ack = Integer.parseInt(strs[2]);
+                from = Integer.parseInt(strs[3]);
             }
 
         } else {

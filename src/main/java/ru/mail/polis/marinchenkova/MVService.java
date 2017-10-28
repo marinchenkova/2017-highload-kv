@@ -93,7 +93,7 @@ public class MVService implements KVService {
             }
 
         } catch (IOException e) {
-            failedQuery(http, id);
+            failedQuery(http, id, e.getMessage());
         }
     }
 
@@ -112,7 +112,7 @@ public class MVService implements KVService {
             http.sendResponseHeaders(HttpStatus.SC_CREATED, 0);
 
         } catch (IOException e) {
-            failedQuery(http, id);
+            failedQuery(http, id, e.getMessage());
         }
     }
 
@@ -123,7 +123,7 @@ public class MVService implements KVService {
             http.sendResponseHeaders(HttpStatus.SC_ACCEPTED, 0);
 
         } catch (IOException e) {
-            failedQuery(http, id);
+            failedQuery(http, id, e.getMessage());
         }
     }
 
@@ -131,14 +131,15 @@ public class MVService implements KVService {
         try {
             http.sendResponseHeaders(HttpStatus.SC_METHOD_NOT_ALLOWED, 0);
         } catch (IOException e) {
-            failedQuery(http, "");
+            failedQuery(http, "", e.getMessage());
         }
     }
 
     private void failedQuery(@NotNull final HttpExchange http,
-                             @NotNull final String id) {
+                             @NotNull final String id,
+                             @NotNull final String msg) {
         try {
-            String response = http.getRequestMethod() + " " + id + " failed";
+            String response = http.getRequestMethod() + " " + id + " failed: " + msg;
             http.getResponseBody().write(response.getBytes());
             http.sendResponseHeaders(HttpStatus.SC_INTERNAL_SERVER_ERROR, response.length());
         } catch (IOException e) {

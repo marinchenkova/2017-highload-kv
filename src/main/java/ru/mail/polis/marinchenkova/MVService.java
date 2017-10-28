@@ -42,12 +42,12 @@ public class MVService implements KVService {
 
         //Entity context
         this.server.createContext(ENTITY, http -> {
-            Query query = new Query(http.getRequestURI().getQuery());
+            final Query query = new Query(http.getRequestURI().getQuery(), 1);
 
             if (query.id == null) http.sendResponseHeaders(HttpStatus.SC_NOT_FOUND, 0);
             else if (query.id.isEmpty()) http.sendResponseHeaders(HttpStatus.SC_BAD_REQUEST, 0);
             else {
-                String method = http.getRequestMethod();
+                final String method = http.getRequestMethod();
                 switch (method) {
                     case GET:
                         getQuery(http, query.id);
@@ -72,7 +72,7 @@ public class MVService implements KVService {
 
     private void statusQuery(@NotNull final HttpExchange http) {
         try {
-            String response = ONLINE;
+            final String response = ONLINE;
             http.sendResponseHeaders(HttpStatus.SC_OK, response.length());
             http.getResponseBody().write(response.getBytes());
             http.close();
@@ -84,7 +84,7 @@ public class MVService implements KVService {
     private void getQuery(@NotNull final HttpExchange http,
                           @NotNull final String id) {
         try {
-            byte[] data = this.dataBase.get(id);
+            final byte[] data = this.dataBase.get(id);
             if (data != null) {
                 http.sendResponseHeaders(HttpStatus.SC_OK, data.length);
                 http.getResponseBody().write(data);
@@ -100,10 +100,10 @@ public class MVService implements KVService {
     private void putQuery(@NotNull final HttpExchange http,
                           @NotNull final String id) {
         try {
-            int available = http.getRequestBody().available();
-            byte[] data = new byte[available];
+            final int available = http.getRequestBody().available();
+            final byte[] data = new byte[available];
 
-            int r = http.getRequestBody().read(data);
+            final int r = http.getRequestBody().read(data);
             if(r != data.length && r != -1) {
                 throw new IOException("Can't read " + id + " in one go!");
             }
@@ -139,7 +139,7 @@ public class MVService implements KVService {
                              @NotNull final String id,
                              @NotNull final String msg) {
         try {
-            String response = http.getRequestMethod() + " " + id + " failed: " + msg;
+            final String response = http.getRequestMethod() + " " + id + " failed: " + msg;
             http.getResponseBody().write(response.getBytes());
             http.sendResponseHeaders(HttpStatus.SC_INTERNAL_SERVER_ERROR, response.length());
         } catch (IOException e) {

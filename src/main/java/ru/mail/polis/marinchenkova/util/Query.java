@@ -19,8 +19,7 @@ public class Query {
     public final int from;
 
     public Query(@NotNull final String query,
-                 final int defaultAck,
-                 final int defaultFrom) {
+                 final int nodesNum) {
         Matcher matcher = QUERY.matcher(query);
 
         // Query is valid
@@ -30,8 +29,8 @@ public class Query {
             // Query has no replicas part
             if (matcher.matches()) {
                 id = ID.matcher(query).replaceAll("");
-                ack = defaultAck;
-                from = defaultFrom;
+                from = nodesNum;
+                ack = from / 2 + 1;
             } else {
                 String strs[] = query.split("id=|&replicas=|/");
                 id = strs[1];
@@ -44,9 +43,5 @@ public class Query {
             ack = 0;
             from = 0;
         }
-    }
-
-    public Query(@NotNull final String query) {
-        this(query, 1, 1);
     }
 }

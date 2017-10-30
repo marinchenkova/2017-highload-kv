@@ -15,14 +15,13 @@ import java.util.regex.Pattern;
  */
 public class TopologyAgent {
 
-    private final static Pattern LOCALHOST_FULL = Pattern.compile("http://localhost:\\d*");
-    private final static Pattern LOCALHOST = Pattern.compile("http://localhost:");
+    private final static Pattern LOCALHOST = Pattern.compile("http://localhost:(\\d*)");
 
     public final int from;
 
-
     @NotNull
     private final Set<String> topology;
+
 
     public TopologyAgent(@NotNull final Set<String> topology) {
         this.topology = topology;
@@ -42,11 +41,7 @@ public class TopologyAgent {
     }
 
     private int getPort(@NotNull final String addr) {
-        Matcher matcher = LOCALHOST_FULL.matcher(addr);
-        if (matcher.matches()) {
-            matcher = LOCALHOST.matcher(addr);
-            return Integer.parseInt(matcher.replaceAll(""));
-        }
-        return -1;
+        final Matcher matcher = LOCALHOST.matcher(addr);
+        return matcher.matches() ? Integer.parseInt(matcher.group(1)) : -1;
     }
 }

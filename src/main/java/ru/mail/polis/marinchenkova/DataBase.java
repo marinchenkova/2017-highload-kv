@@ -21,7 +21,7 @@ public class DataBase implements IDataBase{
      * Вернуть значение по ключу, если он есть,
      * выбросить исключение, если его нет.
      * @param key {@link String} ключ
-     * @return данные, null если не получилось извлечь данные
+     * @return данные, null если файл с именем key не найден
      * @throws IOException если файл не может быть прочитан
      */
     @Nullable
@@ -29,11 +29,17 @@ public class DataBase implements IDataBase{
         final File file = getFile(key);
         try (InputStream fileInputStream = new FileInputStream(file)) {
             final byte data[] = new byte[fileInputStream.available()];
-            if(fileInputStream.read(data) != data.length) {
-                throw new IOException("Can't read " + file.getName() + " at one go!");
+
+            int i = 0;
+            int j;
+            while ((j = fileInputStream.available()) > 0) {
+                fileInputStream.read(data, i, j);
+                i = j;
             }
+
             return data;
-        } catch (IOException e) {
+
+        } catch (FileNotFoundException e) {
             return null;
         }
     }

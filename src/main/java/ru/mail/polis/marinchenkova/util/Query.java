@@ -10,33 +10,21 @@ import java.util.regex.Pattern;
  */
 public class Query {
 
-    private final static Pattern QUERY = Pattern.compile("id=[\\w]*(&replicas=\\d*\\/\\d*)?");
-    private final static Pattern IDD = Pattern.compile("id=[\\w]*");
-    private final static Pattern ID = Pattern.compile("id=");
+    private final static Pattern QUERY = Pattern.compile("id=([\\w]*)(&replicas=(\\d*)/(\\d*))?");
 
     public final String id;
     public final int ack;
     public final int from;
 
+    
     public Query(@NotNull final String query,
                  final int from) {
-        Matcher matcher = QUERY.matcher(query);
+        final Matcher matcher = QUERY.matcher(query);
 
-        // Query is valid
         if (matcher.matches()) {
-            matcher = IDD.matcher(query);
-
-            // Query has no replicas part
-            if (matcher.matches()) {
-                this.id = ID.matcher(query).replaceAll("");
-                this.from = from;
-                this.ack = quorum(from);
-            } else {
-                String strs[] = query.split("id=|&replicas=|/");
-                this.id = strs[1];
-                this.ack = Integer.parseInt(strs[2]);
-                this.from = Integer.parseInt(strs[3]);
-            }
+            this.id = matcher.group(1);
+            this.from = matcher.group(3) != null ? Integer.parseInt(matcher.group(3)) : from;
+            this.ack = quorum(from);
 
         } else {
             this.id = null;

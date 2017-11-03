@@ -11,7 +11,6 @@ import ru.mail.polis.marinchenkova.util.TopologyAgent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
-import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
@@ -52,33 +51,36 @@ public class MVService implements KVService {
             http.sendResponseHeaders(HttpStatus.SC_OK, response.length());
             http.getResponseBody().write(response.getBytes());
             http.close();
-        } catch (IOException e) {
-            failedQuery(http, "", "error sending status!");
+        } catch (Exception e) {
+            http.close();
         }
     }
 
-    private void entityQuery(@NotNull final HttpExchange http) throws IOException{
-        final Query query = new Query(http.getRequestURI().getQuery(), topAgent.from);
+    private void entityQuery(@NotNull final HttpExchange http) {
+        try {
+            final Query query = new Query(http.getRequestURI().getQuery(), topAgent.from);
+            if (validQuery(http, query)) {
+                final String method = http.getRequestMethod();
+                switch (method) {
+                    case GET:
+                        getQuery(http, query.id);
+                        break;
 
-        if (validQuery(http, query)) {
-            final String method = http.getRequestMethod();
-            switch (method) {
-                case GET:
-                    getQuery(http, query.id);
-                    break;
+                    case PUT:
+                        putQuery(http, query.id);
+                        break;
 
-                case PUT:
-                    putQuery(http, query.id);
-                    break;
+                    case DELETE:
+                        deleteQuery(http, query.id);
+                        break;
 
-                case DELETE:
-                    deleteQuery(http, query.id);
-                    break;
-
-                default:
-                    unknownQuery(http);
-                    break;
+                    default:
+                        unknownQuery(http);
+                        break;
+                }
             }
+        } catch (Exception e) {
+            http.close();
         }
     }
 
@@ -90,8 +92,8 @@ public class MVService implements KVService {
             try {
                 http.sendResponseHeaders(code, 0);
                 http.close();
-            } catch (IOException e) {
-                failedQuery(http, "", "error parsing query!");
+            } catch (Exception e) {
+                http.close();
             }
 
             return false;
@@ -112,8 +114,8 @@ public class MVService implements KVService {
             }
             http.close();
 
-        } catch (IOException e) {
-            failedQuery(http, id, e.getMessage());
+        } catch (Exception e) {
+            http.close();
         }
     }
 
@@ -134,8 +136,8 @@ public class MVService implements KVService {
             http.sendResponseHeaders(HttpStatus.SC_CREATED, 0);
             http.close();
 
-        } catch (IOException e) {
-            failedQuery(http, id, e.getMessage());
+        } catch (Exception e) {
+            http.close();
         }
     }
 
@@ -146,31 +148,19 @@ public class MVService implements KVService {
             http.sendResponseHeaders(HttpStatus.SC_ACCEPTED, 0);
             http.close();
 
-        } catch (IOException e) {
-            failedQuery(http, id, e.getMessage());
+        } catch (Exception e) {
+            http.close();
         }
     }
 
     private void unknownQuery(@NotNull final HttpExchange http) {
         try {
-            http.sendResponseHeaders(HttpStatus.SC_METHOD_NOT_ALLOWED, 0);
+            final String response = http.getRequestMethod() + " not allowed!";
+            http.sendResponseHeaders(HttpStatus.SC_METHOD_NOT_ALLOWED, response.length());
+            http.getResponseBody().write(response.getBytes());
             http.close();
 
-        } catch (IOException e) {
-            failedQuery(http, "", e.getMessage());
-        }
-    }
-
-    private void failedQuery(@NotNull final HttpExchange http,
-                             @NotNull final String id,
-                             @NotNull final String msg) {
-        try {
-            final String response = http.getRequestMethod() + " " + id + " failed: " + msg;
-            http.getResponseBody().write(response.getBytes());
-            http.sendResponseHeaders(HttpStatus.SC_INTERNAL_SERVER_ERROR, response.length());
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
+        } catch (Exception e) {
             http.close();
         }
     }

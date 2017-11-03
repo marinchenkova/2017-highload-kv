@@ -1,5 +1,6 @@
 package ru.mail.polis.marinchenkova;
 
+import com.sun.istack.internal.Nullable;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.apache.http.HttpStatus;
@@ -8,10 +9,7 @@ import ru.mail.polis.KVService;
 import ru.mail.polis.marinchenkova.util.Query;
 import ru.mail.polis.marinchenkova.util.TopologyAgent;
 
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.util.Set;
 
@@ -60,8 +58,8 @@ public class MVService implements KVService {
 
     private void entityQuery(@NotNull final HttpExchange http) {
         try {
-            final Query query = new Query(http.getRequestURI().getQuery(), topAgent.from);
-            if (validQuery(http, query)) {
+            final Query query = validateQuery(http);
+            if (query != null) {
                 final String method = http.getRequestMethod();
                 switch (method) {
                     case GET:
@@ -86,21 +84,39 @@ public class MVService implements KVService {
         }
     }
 
-    private boolean validQuery(@NotNull HttpExchange http,
-                               @NotNull final Query query) {
-        if (query.id == null || query.id.isEmpty()) {
-            final int code = query.id == null ? HttpStatus.SC_NOT_FOUND : HttpStatus.SC_BAD_REQUEST;
+    @Nullable
+    private Query validateQuery(@NotNull final HttpExchange http) {
+        final int code;
+        final Query query;
+
+        try {
+             query = new Query(http.getRequestURI().getQuery(), topAgent.from);
+
+        } catch (IllegalArgumentException e) {
+            switch (e.getMessage()) {
+                case Query.MSG_BAD_REQUEST:
+                    code = HttpStatus.SC_BAD_REQUEST;
+                    break;
+
+                case Query.MSG_NOT_FOUND:
+                    code = HttpStatus.SC_NOT_FOUND;
+                    break;
+
+                default:
+                    code = 0;
+            }
 
             try {
                 http.sendResponseHeaders(code, 0);
                 http.close();
-            } catch (Exception e) {
+            } catch (Exception ex) {
                 http.close();
             }
 
-            return false;
+            return null;
+        }
 
-        } else return true;
+        return query;
     }
 
     private void getQuery(@NotNull final HttpExchange http,

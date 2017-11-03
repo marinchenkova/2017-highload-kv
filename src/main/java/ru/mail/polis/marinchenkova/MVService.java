@@ -8,6 +8,8 @@ import ru.mail.polis.KVService;
 import ru.mail.polis.marinchenkova.util.Query;
 import ru.mail.polis.marinchenkova.util.TopologyAgent;
 
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetSocketAddress;
@@ -122,17 +124,7 @@ public class MVService implements KVService {
     private void putQuery(@NotNull final HttpExchange http,
                           @NotNull final String id) {
         try {
-            final InputStream inputStream = http.getRequestBody();
-            final byte[] data = new byte[inputStream.available()];
-
-            int i = 0;
-            int j;
-            while ((j = inputStream.available()) > 0) {
-                inputStream.read(data, i, j);
-                i = j;
-            }
-
-            this.dataBase.upsert(id, data);
+            this.dataBase.upsert(id, DataBase.readByteArray(http.getRequestBody()));
             http.sendResponseHeaders(HttpStatus.SC_CREATED, 0);
             http.close();
 

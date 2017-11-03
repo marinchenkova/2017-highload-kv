@@ -28,16 +28,7 @@ public class DataBase implements IDataBase{
     public byte[] get(@NotNull final String key) throws IOException {
         final File file = getFile(key);
         try (InputStream fileInputStream = new FileInputStream(file)) {
-            final byte data[] = new byte[fileInputStream.available()];
-
-            int i = 0;
-            int j;
-            while ((j = fileInputStream.available()) > 0) {
-                fileInputStream.read(data, i, j);
-                i = j;
-            }
-
-            return data;
+            return readByteArray(fileInputStream);
 
         } catch (FileNotFoundException e) {
             return null;
@@ -70,4 +61,15 @@ public class DataBase implements IDataBase{
         return new File(this.path, name);
     }
 
+    public static byte[] readByteArray(@NotNull final InputStream in) throws IOException {
+        final byte buffer[] = new byte[1024];
+        final ByteArrayOutputStream out = new ByteArrayOutputStream();
+
+        int j;
+        while ((j = in.read(buffer)) != -1) {
+            out.write(buffer, 0, j);
+        }
+
+        return out.toByteArray();
+    }
 }

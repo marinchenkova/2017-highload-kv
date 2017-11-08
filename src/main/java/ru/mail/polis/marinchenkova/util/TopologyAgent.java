@@ -1,6 +1,5 @@
 package ru.mail.polis.marinchenkova.util;
 
-import com.sun.scenario.effect.impl.sw.sse.SSEBlend_SRC_OUTPeer;
 import org.apache.http.HttpStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -10,7 +9,6 @@ import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import static ru.mail.polis.marinchenkova.MVService.*;
 
@@ -21,8 +19,7 @@ public class TopologyAgent {
 
     public final int size;
 
-    private final static Pattern LOCALHOST = Pattern.compile("http://localhost:(\\d*)");
-    private final static int CONNECT_TIMEOUT = 300;
+    private final static int CONNECT_TIMEOUT = 100;
 
     @NotNull
     private final Set<String> topology;
@@ -48,49 +45,49 @@ public class TopologyAgent {
         else {
             for (String addr : this.topology) {
                 if (query.from - failedConnectionsNum < query.ack) break;
-                if (responsesNum >= query.from) break;
+                if (method.equals(PUT) && responsesNum >= query.from) break;
 
                 final String globalAddr = addr.replace("localhost", "127.0.0.1");
                 final String master = "http:/" + local;
                 if (globalAddr.equals(master)) continue;
-                    try {
-                        final URL urlStatus = new URL(globalAddr + STATUS);
-                        final HttpURLConnection connection = (HttpURLConnection) urlStatus.openConnection();
-                        connection.setConnectTimeout(CONNECT_TIMEOUT);
-                        connection.connect();
 
-                        if (connection.getResponseCode() == HttpStatus.SC_OK) {
-                            final URL urlEntity = new URL(globalAddr + ENTITY + "?" + query.full);
-                            final HttpURLConnection request = (HttpURLConnection) urlEntity.openConnection();
-                            request.setConnectTimeout(CONNECT_TIMEOUT);
-                            request.setRequestMethod(method);
-                            request.setRequestProperty(REPLICA, SLAVE);
+                try {
+                    final URL urlStatus = new URL(globalAddr + STATUS);
+                    final HttpURLConnection connection = (HttpURLConnection) urlStatus.openConnection();
+                    connection.setConnectTimeout(CONNECT_TIMEOUT);
+                    connection.connect();
 
-                            switch (method) {
-                                case GET:
-                                    final Response get = get(request);
-                                    if (get.code == HttpStatus.SC_OK) responsesNum++;
-                                    break;
+                    if (connection.getResponseCode() == HttpStatus.SC_OK) {
+                        final URL urlEntity = new URL(globalAddr + ENTITY + "?" + query.full);
+                        final HttpURLConnection request = (HttpURLConnection) urlEntity.openConnection();
+                        request.setConnectTimeout(CONNECT_TIMEOUT);
+                        request.setRequestMethod(method);
+                        request.setRequestProperty(REPLICA, SLAVE);
 
-                                case PUT:
-                                    final Response put = put(request, data);
-                                    if (put.code == HttpStatus.SC_CREATED) responsesNum++;
-                                    break;
+                        switch (method) {
+                            case GET:
+                                final Response get = get(request);
+                                if (get.code == HttpStatus.SC_OK) responsesNum++;
+                                break;
 
-                                case DELETE:
-                                    final Response delete = delete(request);
-                                    if (delete.code == HttpStatus.SC_ACCEPTED) responsesNum++;
-                                    break;
-                            }
+                            case PUT:
+                                final Response put = put(request, data);
+                                if (put.code == HttpStatus.SC_CREATED) responsesNum++;
+                                break;
 
-                        } else {
-                            failedConnectionsNum++;
+                            case DELETE:
+                                final Response delete = delete(request);
+                                if (delete.code == HttpStatus.SC_ACCEPTED) responsesNum++;
+                                break;
                         }
 
-                    } catch (Exception e) {
+                    } else {
                         failedConnectionsNum++;
                     }
 
+                } catch (Exception e) {
+                    failedConnectionsNum++;
+                }
             }
 
             if (method.equals(GET) && responsesNum < query.ack && this.size - failedConnectionsNum >= query.ack) {

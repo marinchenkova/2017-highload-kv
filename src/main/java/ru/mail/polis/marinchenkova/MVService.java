@@ -128,6 +128,7 @@ public class MVService implements KVService {
         byte[] data = this.dataBase.get(query.id);
         int code = data == null ? HttpStatus.SC_NOT_FOUND : HttpStatus.SC_OK;
         final Response response;
+
         if (!http.getRequestHeaders().containsKey(REPLICA)) {
             response = topologyAgent.process(
                     code,
@@ -210,16 +211,6 @@ public class MVService implements KVService {
             http.close();
 
         } catch (Exception e) {
-            http.close();
-        }
-    }
-
-    private void failedQuery(@NotNull final HttpExchange http) {
-        try {
-            http.sendResponseHeaders(HttpStatus.SC_INTERNAL_SERVER_ERROR, 0);
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
             http.close();
         }
     }

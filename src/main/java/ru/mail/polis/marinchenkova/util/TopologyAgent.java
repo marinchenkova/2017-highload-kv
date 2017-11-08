@@ -1,5 +1,6 @@
 package ru.mail.polis.marinchenkova.util;
 
+import com.sun.scenario.effect.impl.sw.sse.SSEBlend_SRC_OUTPeer;
 import org.apache.http.HttpStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -47,6 +48,7 @@ public class TopologyAgent {
         else {
             for (String addr : this.topology) {
                 if (query.from - failedConnectionsNum < query.ack) break;
+                if (responsesNum >= query.ack) break;
 
                 final String globalAddr = addr.replace("localhost", "127.0.0.1");
                 final String master = "http:/" + local;
@@ -90,7 +92,7 @@ public class TopologyAgent {
                     }
                 }
             }
-            if (method.equals(GET) && responsesNum <= query.ack && this.size - failedConnectionsNum >= query.ack) {
+            if (method.equals(GET) && responsesNum < query.ack && this.size - failedConnectionsNum >= query.ack) {
                 response = new Response(HttpStatus.SC_NOT_FOUND, null);
             } else if (responsesNum < query.ack) {
                 response = new Response(HttpStatus.SC_GATEWAY_TIMEOUT, null);
@@ -105,7 +107,6 @@ public class TopologyAgent {
         try {
             connection.connect();
             final int code = connection.getResponseCode();
-            connection.disconnect();
             final byte data[];
 
             if (code == HttpStatus.SC_OK) {
@@ -114,6 +115,7 @@ public class TopologyAgent {
                 data = DataBase.readByteArray(in);
                 in.close();
             } else data = null;
+            connection.disconnect();
 
             return new Response(code, data);
 
@@ -130,7 +132,6 @@ public class TopologyAgent {
             OutputStream out = new DataOutputStream(connection.getOutputStream());
             out.write(data);
             out.flush();
-
             connection.connect();
             final int code = connection.getResponseCode();
             connection.disconnect();

@@ -128,16 +128,15 @@ public class MVService implements KVService {
         byte[] data = this.dataBase.get(query.id);
         int code = data == null ? HttpStatus.SC_NOT_FOUND : HttpStatus.SC_OK;
         final Response response;
-
         if (!http.getRequestHeaders().containsKey(REPLICA)) {
-             response = topologyAgent.process(
+            response = topologyAgent.process(
                     code,
                     data,
                     query,
                     http.getLocalAddress().toString(),
                     GET);
-             code = response.code;
-             data = response.data;
+            code = response.code;
+            data = response.data;
         }
 
         try {
@@ -165,7 +164,6 @@ public class MVService implements KVService {
                     query,
                     http.getLocalAddress().toString(),
                     PUT);
-
             code = response.code;
         }
 

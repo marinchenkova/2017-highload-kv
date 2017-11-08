@@ -48,11 +48,11 @@ public class TopologyAgent {
         else {
             for (String addr : this.topology) {
                 if (query.from - failedConnectionsNum < query.ack) break;
-                if (responsesNum >= query.ack) break;
+                if (responsesNum >= query.from) break;
 
                 final String globalAddr = addr.replace("localhost", "127.0.0.1");
                 final String master = "http:/" + local;
-                if (!globalAddr.equals(master)) {
+                if (globalAddr.equals(master)) continue;
                     try {
                         final URL urlStatus = new URL(globalAddr + STATUS);
                         final HttpURLConnection connection = (HttpURLConnection) urlStatus.openConnection();
@@ -90,8 +90,9 @@ public class TopologyAgent {
                     } catch (Exception e) {
                         failedConnectionsNum++;
                     }
-                }
+
             }
+
             if (method.equals(GET) && responsesNum < query.ack && this.size - failedConnectionsNum >= query.ack) {
                 response = new Response(HttpStatus.SC_NOT_FOUND, null);
             } else if (responsesNum < query.ack) {
@@ -107,6 +108,7 @@ public class TopologyAgent {
         try {
             connection.connect();
             final int code = connection.getResponseCode();
+            connection.disconnect();
             final byte data[];
 
             if (code == HttpStatus.SC_OK) {
@@ -115,7 +117,7 @@ public class TopologyAgent {
                 data = DataBase.readByteArray(in);
                 in.close();
             } else data = null;
-            connection.disconnect();
+
 
             return new Response(code, data);
 
@@ -132,6 +134,7 @@ public class TopologyAgent {
             OutputStream out = new DataOutputStream(connection.getOutputStream());
             out.write(data);
             out.flush();
+
             connection.connect();
             final int code = connection.getResponseCode();
             connection.disconnect();

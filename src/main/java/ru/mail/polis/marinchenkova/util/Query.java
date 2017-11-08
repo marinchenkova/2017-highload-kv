@@ -14,7 +14,7 @@ public class Query {
     public final static String MSG_NOT_FOUND = "not found";
     public final static String MSG_BAD_REQUEST = "bad request";
 
-
+    public final String full;
     public final String id;
     public final int ack;
     public final int from;
@@ -22,6 +22,7 @@ public class Query {
     
     public Query(@NotNull final String query,
                  final int from) throws IllegalArgumentException {
+        full = query;
         final Matcher matcher = QUERY.matcher(query);
 
         if (matcher.matches()) {

@@ -7,6 +7,7 @@ import org.apache.http.HttpStatus;
 import org.jetbrains.annotations.NotNull;
 import ru.mail.polis.KVService;
 import ru.mail.polis.marinchenkova.util.Query;
+import ru.mail.polis.marinchenkova.util.Response;
 import ru.mail.polis.marinchenkova.util.TopologyAgent;
 
 import java.io.IOException;
@@ -18,27 +19,30 @@ import java.util.Set;
  */
 public class MVService implements KVService {
 
-    private final static String ENTITY = "/v0/entity";
-    private final static String STATUS = "/v0/status";
+    public final static String ENTITY = "/v0/entity";
+    public final static String STATUS = "/v0/status";
 
-    private final static String ONLINE = "ONLINE";
-    private final static String GET = "GET";
-    private final static String PUT = "PUT";
-    private final static String DELETE = "DELETE";
+
+    public final static String REPLICA = "REPLICA";
+    public final static String SLAVE = "SLAVE";
+    public final static String ONLINE = "ONLINE";
+    public final static String GET = "GET";
+    public final static String PUT = "PUT";
+    public final static String DELETE = "DELETE";
 
     @NotNull
     private final HttpServer server;
     @NotNull
     private final IDataBase dataBase;
     @NotNull
-    private final TopologyAgent topAgent;
+    private final TopologyAgent topologyAgent;
 
 
     public MVService(final int port,
                      @NotNull final IDataBase dataBase,
                      @NotNull final Set<String> topology) throws IOException {
         this.dataBase = dataBase;
-        this.topAgent = new TopologyAgent(topology);
+        this.topologyAgent = new TopologyAgent(topology);
         this.server = HttpServer.create(new InetSocketAddress(port), 0);
 
         this.server.createContext(STATUS, this::statusQuery);
@@ -63,15 +67,15 @@ public class MVService implements KVService {
                 final String method = http.getRequestMethod();
                 switch (method) {
                     case GET:
-                        getQuery(http, query.id);
+                        getQuery(http, query);
                         break;
 
                     case PUT:
-                        putQuery(http, query.id);
+                        putQuery(http, query);
                         break;
 
                     case DELETE:
-                        deleteQuery(http, query.id);
+                        deleteQuery(http, query);
                         break;
 
                     default:
@@ -90,7 +94,7 @@ public class MVService implements KVService {
         final Query query;
 
         try {
-             query = new Query(http.getRequestURI().getQuery(), topAgent.from);
+             query = new Query(http.getRequestURI().getQuery(), topologyAgent.from);
 
         } catch (IllegalArgumentException e) {
             switch (e.getMessage()) {
@@ -120,16 +124,25 @@ public class MVService implements KVService {
     }
 
     private void getQuery(@NotNull final HttpExchange http,
-                          @NotNull final String id) {
+                          @NotNull final Query query) {
         try {
-            final byte[] data = this.dataBase.get(id);
+            final byte[] data = this.dataBase.get(query.id);
+            final int code = data == null ? HttpStatus.SC_NOT_FOUND : HttpStatus.SC_OK;
 
-            if (data != null) {
-                http.sendResponseHeaders(HttpStatus.SC_OK, data.length);
-                http.getResponseBody().write(data);
-            } else {
-                http.sendResponseHeaders(HttpStatus.SC_NOT_FOUND, 0);
+            if (!http.getRequestHeaders().containsKey(REPLICA)) {
+                final Response response = topologyAgent.getQuery(
+                        code,
+                        data,
+                        query,
+                        http.getLocalAddress().toString(),
+                        GET);
+
+                http.sendResponseHeaders(response.code, response.data == null ? 0 : response.data.length);
+                if (response.code == HttpStatus.SC_OK) {
+                    http.getResponseBody().write(response.data);
+                }
             }
+
             http.close();
 
         } catch (Exception e) {
@@ -138,9 +151,9 @@ public class MVService implements KVService {
     }
 
     private void putQuery(@NotNull final HttpExchange http,
-                          @NotNull final String id) {
+                          @NotNull final Query query) {
         try {
-            this.dataBase.upsert(id, DataBase.readByteArray(http.getRequestBody()));
+            this.dataBase.upsert(query.id, DataBase.readByteArray(http.getRequestBody()));
             http.sendResponseHeaders(HttpStatus.SC_CREATED, 0);
             http.close();
 
@@ -150,9 +163,9 @@ public class MVService implements KVService {
     }
 
     private void deleteQuery(@NotNull final HttpExchange http,
-                             @NotNull final String id) {
+                             @NotNull final Query query) {
         try {
-            this.dataBase.remove(id);
+            this.dataBase.remove(query.id);
             http.sendResponseHeaders(HttpStatus.SC_ACCEPTED, 0);
             http.close();
 
@@ -171,11 +184,6 @@ public class MVService implements KVService {
         } catch (Exception e) {
             http.close();
         }
-    }
-
-    @NotNull
-    public IDataBase getDataBase() {
-        return this.dataBase;
     }
 
     @Override

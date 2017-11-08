@@ -9,8 +9,8 @@ import java.util.NoSuchElementException;
  * @author Marinchenko V. A.
  */
 public interface IDataBase {
-    byte[] get(@NotNull final String key) throws IOException;
-    void upsert(@NotNull final String key,
-                @NotNull final byte[] data) throws IOException;
-    void remove(@NotNull final String key) throws IOException;
+    byte[] get(@NotNull final String key);
+    boolean upsert(@NotNull final String key,
+                @NotNull final byte[] data);
+    boolean remove(@NotNull final String key);
 }

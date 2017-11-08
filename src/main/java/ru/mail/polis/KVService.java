@@ -12,7 +12,7 @@ package ru.mail.polis;
  * </ul>
  * <p>
  * {@code ID} is a non empty char sequence.
- * {@code RF} is an optional number of replicas (replica factor) to get ACKs from to return success. Default value is <b>quorum</b>.
+ * {@code RF} is an optional number of replicas (replica factor) to get ACKs size to return success. Default value is <b>quorum</b>.
  * <p>
  * In all the cases the storage may return:
  * <ul>

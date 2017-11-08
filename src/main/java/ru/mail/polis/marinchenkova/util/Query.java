@@ -18,7 +18,6 @@ public class Query {
     public final String id;
     public final int ack;
     public final int from;
-
     
     public Query(@NotNull final String query,
                  final int from) throws IllegalArgumentException {
@@ -29,7 +28,6 @@ public class Query {
             this.id = matcher.group(1);
             this.from = matcher.group(4) != null ? Integer.parseInt(matcher.group(4)) : from;
             this.ack = matcher.group(3) != null ? Integer.parseInt(matcher.group(3)) : quorum(from);
-
         } else {
             this.id = null;
             this.ack = 0;

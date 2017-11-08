@@ -1,23 +1,14 @@
 package ru.mail.polis.marinchenkova.util;
 
-import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpServer;
-import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import ru.mail.polis.marinchenkova.DataBase;
 
-import java.io.DataInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
 import java.net.HttpURLConnection;
-import java.net.InetSocketAddress;
 import java.net.URL;
-import java.net.URLConnection;
-import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static ru.mail.polis.marinchenkova.MVService.*;
@@ -27,78 +18,99 @@ import static ru.mail.polis.marinchenkova.MVService.*;
  */
 public class TopologyAgent {
 
-    private final static Pattern LOCALHOST = Pattern.compile("http://localhost:(\\d*)");
+    public final int size;
 
+    private final static Pattern LOCALHOST = Pattern.compile("http://localhost:(\\d*)");
+    private final static int CONNECT_TIMEOUT = 300;
 
     @NotNull
     private final Set<String> topology;
-    public final int from;
+
 
     public TopologyAgent(@NotNull final Set<String> topology) {
-        this.from = topology.size();
+        this.size = topology.size();
         this.topology = topology;
     }
 
     @NotNull
-    public Response getQuery(final int masterResponseCode,
-                             @Nullable final byte[] data,
-                             @NotNull final Query query,
-                             @NotNull final String local,
-                             @NotNull final String method) {
-        int responsesNum = masterResponseCode == HttpStatus.SC_OK ? 1 : 0;
-        int failuresNum = masterResponseCode == HttpStatus.SC_NOT_FOUND ? 1 : 0;
+    public Response process(final int masterResponseCode,
+                            @Nullable final byte[] data,
+                            @NotNull final Query query,
+                            @NotNull final String local,
+                            @NotNull final String method) {
 
-        if (responsesNum == query.ack) return new Response(HttpStatus.SC_OK, data);
+        int responsesNum = responseNumInit(masterResponseCode, method);
+        int failedConnectionsNum = 0;
+        final Response response;
+
+        if (this.size == 1) response = new Response(masterResponseCode, data);
         else {
             for (String addr : this.topology) {
-                if (!addr.equals(local)) {
-                    if (query.from - failuresNum < query.ack) break;
+                if (query.from - failedConnectionsNum < query.ack) break;
 
-                    final String url = addr + ENTITY + "?" + query.full;
+                final String globalAddr = addr.replace("localhost", "127.0.0.1");
+                final String master = "http:/" + local;
+                if (!globalAddr.equals(master)) {
                     try {
-                        final HttpURLConnection connection = (HttpURLConnection)
-                                (new URL(addr + STATUS)).openConnection();
+                        final URL urlStatus = new URL(globalAddr + STATUS);
+                        final HttpURLConnection connection = (HttpURLConnection) urlStatus.openConnection();
+                        connection.setConnectTimeout(CONNECT_TIMEOUT);
+                        connection.connect();
 
-                        int code = connection.getResponseCode();
-                        if (code == HttpStatus.SC_OK) {
+                        if (connection.getResponseCode() == HttpStatus.SC_OK) {
+                            final URL urlEntity = new URL(globalAddr + ENTITY + "?" + query.full);
+                            final HttpURLConnection request = (HttpURLConnection) urlEntity.openConnection();
+                            request.setConnectTimeout(CONNECT_TIMEOUT);
+                            request.setRequestMethod(method);
+                            request.setRequestProperty(REPLICA, SLAVE);
+
                             switch (method) {
                                 case GET:
-                                    Response response = get(url, local);
-                                    if (response.code == HttpStatus.SC_OK) responsesNum++;
-                                    if (responsesNum == query.ack) return response;
+                                    final Response get = get(request);
+                                    if (get.code == HttpStatus.SC_OK) responsesNum++;
+                                    break;
 
                                 case PUT:
+                                    final Response put = put(request, data);
+                                    if (put.code == HttpStatus.SC_CREATED) responsesNum++;
+                                    break;
 
                                 case DELETE:
-
+                                    final Response delete = delete(request);
+                                    if (delete.code == HttpStatus.SC_ACCEPTED) responsesNum++;
+                                    break;
                             }
 
-                        } else failuresNum++;
+                        } else {
+                            failedConnectionsNum++;
+                        }
 
-                    } catch (IOException e) {
-                        failuresNum++;
+                    } catch (Exception e) {
+                        failedConnectionsNum++;
                     }
                 }
             }
-            if (responsesNum > 0) return new Response(HttpStatus.SC_GATEWAY_TIMEOUT, null);
-            return new Response(HttpStatus.SC_NOT_FOUND, null);
+            if (method.equals(GET) && responsesNum <= query.ack && this.size - failedConnectionsNum >= query.ack) {
+                response = new Response(HttpStatus.SC_NOT_FOUND, null);
+            } else if (responsesNum < query.ack) {
+                response = new Response(HttpStatus.SC_GATEWAY_TIMEOUT, null);
+            } else response = new Response(successResponseCode(method), data);
         }
+
+        return response;
     }
 
     @NotNull
-    private Response get(@NotNull final String url,
-                       @NotNull final String master) {
-        final byte data[];
-        final int code;
+    private Response get(@NotNull final HttpURLConnection connection) {
         try {
-            final HttpURLConnection connection = (HttpURLConnection) (new URL(url)).openConnection();
-            connection.setRequestMethod(GET);
-            if (!url.equals(master)) connection.setRequestProperty(REPLICA, SLAVE);
+            connection.connect();
+            final int code = connection.getResponseCode();
+            connection.disconnect();
+            final byte data[];
 
-            code = connection.getResponseCode();
             if (code == HttpStatus.SC_OK) {
                 connection.setDoInput(true);
-                InputStream in = new DataInputStream(connection.getInputStream());
+                final InputStream in = new DataInputStream(connection.getInputStream());
                 data = DataBase.readByteArray(in);
                 in.close();
             } else data = null;
@@ -107,6 +119,74 @@ public class TopologyAgent {
 
         } catch (IOException e) {
             return new Response(HttpStatus.SC_NOT_FOUND, null);
+        }
+    }
+
+    @NotNull
+    private Response put(@NotNull final HttpURLConnection connection,
+                         @NotNull final byte[] data) {
+        try {
+            connection.setDoOutput(true);
+            OutputStream out = new DataOutputStream(connection.getOutputStream());
+            out.write(data);
+            out.flush();
+
+            connection.connect();
+            final int code = connection.getResponseCode();
+            connection.disconnect();
+
+            return new Response(code, null);
+
+        } catch (IOException e) {
+            return new Response(HttpStatus.SC_METHOD_FAILURE, null);
+        }
+    }
+
+    @NotNull
+    private Response delete(@NotNull final HttpURLConnection connection) {
+        try {
+            connection.connect();
+            final int code = connection.getResponseCode();
+            connection.disconnect();
+
+            return new Response(code, null);
+
+        } catch (IOException e) {
+            return new Response(HttpStatus.SC_METHOD_FAILURE, null);
+        }
+    }
+
+
+    private int responseNumInit(final int masterResponseCode,
+                                @NotNull final String method) {
+        switch (method) {
+            case GET:
+                return masterResponseCode == HttpStatus.SC_OK ? 1 : 0;
+
+            case PUT:
+                return masterResponseCode == HttpStatus.SC_CREATED ? 1 : 0;
+
+            case DELETE:
+                return masterResponseCode == HttpStatus.SC_ACCEPTED ? 1 : 0;
+
+            default:
+                return 0;
+        }
+    }
+
+    private int successResponseCode(@NotNull final String method) {
+        switch (method) {
+            case GET:
+                return HttpStatus.SC_OK;
+
+            case PUT:
+                return HttpStatus.SC_CREATED;
+
+            case DELETE:
+                return HttpStatus.SC_ACCEPTED;
+
+            default:
+                return 0;
         }
     }
 }

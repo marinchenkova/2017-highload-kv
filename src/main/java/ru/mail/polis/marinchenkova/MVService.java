@@ -94,7 +94,7 @@ public class MVService implements KVService {
         final Query query;
 
         try {
-             query = new Query(http.getRequestURI().getQuery(), topologyAgent.from);
+             query = new Query(http.getRequestURI().getQuery(), topologyAgent.size);
 
         } catch (IllegalArgumentException e) {
             switch (e.getMessage()) {
@@ -125,24 +125,24 @@ public class MVService implements KVService {
 
     private void getQuery(@NotNull final HttpExchange http,
                           @NotNull final Query query) {
+        byte[] data = this.dataBase.get(query.id);
+        int code = data == null ? HttpStatus.SC_NOT_FOUND : HttpStatus.SC_OK;
+        final Response response;
+
+        if (!http.getRequestHeaders().containsKey(REPLICA)) {
+             response = topologyAgent.process(
+                    code,
+                    data,
+                    query,
+                    http.getLocalAddress().toString(),
+                    GET);
+             code = response.code;
+             data = response.data;
+        }
+
         try {
-            final byte[] data = this.dataBase.get(query.id);
-            final int code = data == null ? HttpStatus.SC_NOT_FOUND : HttpStatus.SC_OK;
-
-            if (!http.getRequestHeaders().containsKey(REPLICA)) {
-                final Response response = topologyAgent.getQuery(
-                        code,
-                        data,
-                        query,
-                        http.getLocalAddress().toString(),
-                        GET);
-
-                http.sendResponseHeaders(response.code, response.data == null ? 0 : response.data.length);
-                if (response.code == HttpStatus.SC_OK) {
-                    http.getResponseBody().write(response.data);
-                }
-            }
-
+            http.sendResponseHeaders(code, code == HttpStatus.SC_OK ? data.length : 0);
+            if (code == HttpStatus.SC_OK) http.getResponseBody().write(data);
             http.close();
 
         } catch (Exception e) {
@@ -152,9 +152,25 @@ public class MVService implements KVService {
 
     private void putQuery(@NotNull final HttpExchange http,
                           @NotNull final Query query) {
+
+        final byte data[] = DataBase.readByteArray(http.getRequestBody());
+        final boolean created = this.dataBase.upsert(query.id, data);
+        final Response response;
+        int code = created ? HttpStatus.SC_CREATED : HttpStatus.SC_INTERNAL_SERVER_ERROR;
+
+        if (!http.getRequestHeaders().containsKey(REPLICA)) {
+            response = topologyAgent.process(
+                    code,
+                    data,
+                    query,
+                    http.getLocalAddress().toString(),
+                    PUT);
+
+            code = response.code;
+        }
+
         try {
-            this.dataBase.upsert(query.id, DataBase.readByteArray(http.getRequestBody()));
-            http.sendResponseHeaders(HttpStatus.SC_CREATED, 0);
+            http.sendResponseHeaders(code, 0);
             http.close();
 
         } catch (Exception e) {
@@ -164,9 +180,23 @@ public class MVService implements KVService {
 
     private void deleteQuery(@NotNull final HttpExchange http,
                              @NotNull final Query query) {
+        this.dataBase.remove(query.id);
+        final Response response;
+        int code = HttpStatus.SC_ACCEPTED;
+
+        if (!http.getRequestHeaders().containsKey(REPLICA)) {
+            response = topologyAgent.process(
+                    code,
+                    null,
+                    query,
+                    http.getLocalAddress().toString(),
+                    DELETE);
+
+            code = response.code;
+        }
+
         try {
-            this.dataBase.remove(query.id);
-            http.sendResponseHeaders(HttpStatus.SC_ACCEPTED, 0);
+            http.sendResponseHeaders(code, 0);
             http.close();
 
         } catch (Exception e) {
@@ -182,6 +212,16 @@ public class MVService implements KVService {
             http.close();
 
         } catch (Exception e) {
+            http.close();
+        }
+    }
+
+    private void failedQuery(@NotNull final HttpExchange http) {
+        try {
+            http.sendResponseHeaders(HttpStatus.SC_INTERNAL_SERVER_ERROR, 0);
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
             http.close();
         }
     }

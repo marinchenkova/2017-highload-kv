@@ -25,6 +25,7 @@ public class MVService implements KVService {
 
     public final static String REPLICA = "REPLICA";
     public final static String SLAVE = "SLAVE";
+    public final static String PARTIAL = "PARTIAL";
     public final static String ONLINE = "ONLINE";
     public final static String GET = "GET";
     public final static String PUT = "PUT";
@@ -42,7 +43,7 @@ public class MVService implements KVService {
                      @NotNull final IDataBase dataBase,
                      @NotNull final Set<String> topology) throws IOException {
         this.dataBase = dataBase;
-        this.topologyAgent = new TopologyAgent(topology);
+        this.topologyAgent = new TopologyAgent(topology, dataBase, port);
         this.server = HttpServer.create(new InetSocketAddress(port), 0);
 
         this.server.createContext(STATUS, this::statusQuery);
@@ -125,34 +126,38 @@ public class MVService implements KVService {
 
     private void getQuery(@NotNull final HttpExchange http,
                           @NotNull final Query query) {
-        byte[] data = this.dataBase.get(query.id);
-        int code = data == null ? HttpStatus.SC_NOT_FOUND : HttpStatus.SC_OK;
-        final Response response;
-
-        if (!http.getRequestHeaders().containsKey(REPLICA)) {
-            response = topologyAgent.process(
-                    code,
-                    data,
-                    query,
-                    http.getLocalAddress().toString(),
-                    GET);
-            code = response.code;
-            data = response.data;
-        }
-
-        try {
-            http.sendResponseHeaders(code, code == HttpStatus.SC_OK ? data.length : 0);
-            if (code == HttpStatus.SC_OK) http.getResponseBody().write(data);
+        if (http.getRequestHeaders().containsKey(PARTIAL)) {
             http.close();
+            topologyAgent.sendMissedWrites();
 
-        } catch (Exception e) {
-            http.close();
+        } else {
+            byte[] data = this.dataBase.get(query.id);
+            int code = data == null ? HttpStatus.SC_NOT_FOUND : HttpStatus.SC_OK;
+            final Response response;
+
+            if (!http.getRequestHeaders().containsKey(REPLICA)) {
+                response = topologyAgent.process(
+                        code,
+                        data,
+                        query,
+                        GET);
+                code = response.code;
+                data = response.data;
+            }
+
+            try {
+                http.sendResponseHeaders(code, code == HttpStatus.SC_OK ? data.length : 0);
+                if (code == HttpStatus.SC_OK) http.getResponseBody().write(data);
+                http.close();
+
+            } catch (Exception e) {
+                http.close();
+            }
         }
     }
 
     private void putQuery(@NotNull final HttpExchange http,
                           @NotNull final Query query) {
-
         final byte data[] = DataBase.readByteArray(http.getRequestBody());
         final boolean created = this.dataBase.upsert(query.id, data);
         final Response response;
@@ -163,7 +168,6 @@ public class MVService implements KVService {
                     code,
                     data,
                     query,
-                    http.getLocalAddress().toString(),
                     PUT);
             code = response.code;
         }
@@ -188,7 +192,6 @@ public class MVService implements KVService {
                     code,
                     null,
                     query,
-                    http.getLocalAddress().toString(),
                     DELETE);
 
             code = response.code;
@@ -218,6 +221,7 @@ public class MVService implements KVService {
     @Override
     public void start() {
         this.server.start();
+        this.topologyAgent.start();
     }
 
     @Override

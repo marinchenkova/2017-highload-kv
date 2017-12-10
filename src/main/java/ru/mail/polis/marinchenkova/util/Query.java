@@ -10,9 +10,11 @@ import java.util.regex.Pattern;
  */
 public class Query {
 
-    private final static Pattern QUERY = Pattern.compile("id=([\\w]*)(&replicas=(\\d*)/(\\d*))?");
     public final static String MSG_NOT_FOUND = "not found";
     public final static String MSG_BAD_REQUEST = "bad request";
+
+    private final static Pattern QUERY = Pattern.compile("id=([\\w]*)(&replicas=(\\d*)/(\\d*))?");
+    private final static Pattern QUERY_FOR_FILE = Pattern.compile("id=([\\w]*)(&replicas=(\\d*)-(\\d*))?");
 
     public final String full;
     public final String id;
@@ -20,14 +22,16 @@ public class Query {
     public final int from;
     
     public Query(@NotNull final String query,
-                 final int from) throws IllegalArgumentException {
+                 final int size) throws IllegalArgumentException {
         full = query;
         final Matcher matcher = QUERY.matcher(query);
+        final Matcher matcher2 = QUERY_FOR_FILE.matcher(query);
+        final Matcher need = matcher.matches() ? matcher : matcher2.matches() ? matcher2 : null;
 
-        if (matcher.matches()) {
-            this.id = matcher.group(1);
-            this.from = matcher.group(4) != null ? Integer.parseInt(matcher.group(4)) : from;
-            this.ack = matcher.group(3) != null ? Integer.parseInt(matcher.group(3)) : quorum(from);
+        if (need != null) {
+            this.id = need.group(1);
+            this.from = need.group(4) != null ? Integer.parseInt(need.group(4)) : size;
+            this.ack = need.group(3) != null ? Integer.parseInt(need.group(3)) : quorum(size);
         } else {
             this.id = null;
             this.ack = 0;
@@ -35,6 +39,16 @@ public class Query {
         }
 
         checkCorrect();
+    }
+
+    public Query changeParams(final int newAck,
+                              final int newFrom,
+                              final int size) {
+        return new Query("id=" + id + "&replicas=" + newAck + "/" + newFrom, size);
+    }
+
+    public String getQueryForFile() {
+        return "id=" + this.id + "&replicas=" + this.ack + "-" + this.from;
     }
 
     private void checkCorrect() throws IllegalArgumentException {

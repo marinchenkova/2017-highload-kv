@@ -10,11 +10,16 @@ import java.io.*;
  */
 public class DataBase implements IDataBase{
 
+    private final static String MISSED_WRITE_DIR = "missedWrites";
+
+    @NotNull
+    private final File missedWritePath;
     @NotNull
     private final File path;
 
     public DataBase(@NotNull final File path){
         this.path = path;
+        this.missedWritePath = initDirMissedWrite(path);
     }
 
     /**
@@ -25,13 +30,7 @@ public class DataBase implements IDataBase{
      */
     @Nullable
     public byte[] get(@NotNull final String key) {
-        final File file = getFile(key);
-        try (InputStream fileInputStream = new FileInputStream(file)) {
-            return readByteArray(fileInputStream);
-
-        } catch (Exception e) {
-            return null;
-        }
+        return get(key, false);
     }
 
     /**
@@ -40,13 +39,8 @@ public class DataBase implements IDataBase{
      * @param data новые данные
      */
     public boolean upsert(@NotNull final String key,
-                       @NotNull final byte[] data) {
-        try (OutputStream fileOutputStream = new FileOutputStream(getFile(key))) {
-            fileOutputStream.write(data);
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
+                          @NotNull final byte[] data) {
+        return upsert(key, data, false);
     }
 
     /**
@@ -55,12 +49,74 @@ public class DataBase implements IDataBase{
      * @param key {@link String} ключ
      */
     public boolean remove(@NotNull final String key) {
-        final File file = getFile(key);
-        return file.delete();
+        return remove(key, false);
     }
 
-    private File getFile(@NotNull final String name) {
-        return new File(this.path, name);
+    private File getFile(@NotNull final String name,
+                         final boolean missedWrite) {
+        final File file;
+        if (missedWrite) file = new File(this.missedWritePath, name);
+        else file = new File(this.path, name);
+        return file;
+    }
+
+    private File initDirMissedWrite(@NotNull final File path) {
+        final File dir = new File(path, MISSED_WRITE_DIR);
+        if (!dir.exists()) dir.mkdir();
+        return dir;
+    }
+
+    public String[] getMissedWrites() {
+        final String[] missedWrites = new String[getMissedWritesSize()];
+        final File[] missedWriteFiles = this.missedWritePath.listFiles();
+        for (int i = 0; i < missedWriteFiles.length; i++) {
+            missedWrites[i] = missedWriteFiles[i].getName();
+        }
+        return missedWrites;
+    }
+
+    public boolean upsertMissedWrite(@NotNull final String key) {
+        return upsert(key, new byte[]{}, true);
+    }
+
+    public boolean removeMissedWrite(@NotNull final String key) {
+        return remove(key, true);
+    }
+
+    public int getMissedWritesSize() {
+        return missedWritePath.listFiles().length;
+    }
+
+    @Nullable
+    private byte[] get(@NotNull final String key,
+                       final boolean missedWrite) {
+        final File file = getFile(key, missedWrite);
+
+        try (InputStream fileInputStream = new FileInputStream(file)) {
+            return readByteArray(fileInputStream);
+
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private boolean upsert(@NotNull final String key,
+                           @NotNull final byte[] data,
+                           final boolean missedWrite) {
+        final File file = getFile(key, missedWrite);
+
+        try (OutputStream fileOutputStream = new FileOutputStream(file)) {
+            fileOutputStream.write(data);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean remove(@NotNull final String key,
+                           final boolean missedWrite) {
+        final File file = getFile(key, missedWrite);
+        return file.delete();
     }
 
     @Nullable

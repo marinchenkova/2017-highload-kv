@@ -1,10 +1,10 @@
 package ru.mail.polis.marinchenkova;
 
-import com.sun.istack.internal.Nullable;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.apache.http.HttpStatus;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import ru.mail.polis.KVService;
 import ru.mail.polis.marinchenkova.util.Query;
 import ru.mail.polis.marinchenkova.util.Response;

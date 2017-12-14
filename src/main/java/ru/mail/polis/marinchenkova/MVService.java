@@ -9,6 +9,7 @@ import ru.mail.polis.KVService;
 import ru.mail.polis.marinchenkova.util.Query;
 import ru.mail.polis.marinchenkova.util.Response;
 import ru.mail.polis.marinchenkova.util.TopologyAgent;
+import ru.mail.polis.marinchenkova.util.Util;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -21,7 +22,6 @@ public class MVService implements KVService {
 
     public final static String ENTITY = "/v0/entity";
     public final static String STATUS = "/v0/status";
-
 
     public final static String REPLICA = "REPLICA";
     public final static String SLAVE = "SLAVE";
@@ -44,21 +44,15 @@ public class MVService implements KVService {
                      @NotNull final Set<String> topology) throws IOException {
         this.dataBase = dataBase;
         this.topologyAgent = new TopologyAgent(topology, dataBase, port);
-        this.server = HttpServer.create(new InetSocketAddress(port), 0);
 
+        this.server = HttpServer.create(new InetSocketAddress(port), 0);
         this.server.createContext(STATUS, this::statusQuery);
         this.server.createContext(ENTITY, this::entityQuery);
     }
 
     private void statusQuery(@NotNull final HttpExchange http) {
-        try {
-            final String response = ONLINE;
-            http.sendResponseHeaders(HttpStatus.SC_OK, response.length());
-            http.getResponseBody().write(response.getBytes());
-            http.close();
-        } catch (Exception e) {
-            http.close();
-        }
+        final int code = HttpStatus.SC_OK;
+        sendResponse(http, "status", ONLINE.getBytes(), code);
     }
 
     private void entityQuery(@NotNull final HttpExchange http) {
@@ -91,37 +85,16 @@ public class MVService implements KVService {
 
     @Nullable
     private Query validateQuery(@NotNull final HttpExchange http) {
-        final int code;
-        final Query query;
+        final Query query = new Query(http.getRequestURI().getQuery(), topologyAgent.size);
+        final int code = query.checkCorrect();
 
-        try {
-             query = new Query(http.getRequestURI().getQuery(), topologyAgent.size);
+        if (code == HttpStatus.SC_OK) {
+            return query;
 
-        } catch (IllegalArgumentException e) {
-            switch (e.getMessage()) {
-                case Query.MSG_BAD_REQUEST:
-                    code = HttpStatus.SC_BAD_REQUEST;
-                    break;
-
-                case Query.MSG_NOT_FOUND:
-                    code = HttpStatus.SC_NOT_FOUND;
-                    break;
-
-                default:
-                    code = 0;
-            }
-
-            try {
-                http.sendResponseHeaders(code, 0);
-                http.close();
-            } catch (Exception ex) {
-                http.close();
-            }
-
+        } else {
+            sendResponse(http, query.getFull(), code);
             return null;
         }
-
-        return query;
     }
 
     private void getQuery(@NotNull final HttpExchange http,
@@ -131,89 +104,83 @@ public class MVService implements KVService {
             topologyAgent.sendMissedWrites();
 
         } else {
-            byte[] data = this.dataBase.get(query.id);
+            byte[] data = this.dataBase.get(query.getId());
             int code = data == null ? HttpStatus.SC_NOT_FOUND : HttpStatus.SC_OK;
-            final Response response;
 
             if (!http.getRequestHeaders().containsKey(REPLICA)) {
-                response = topologyAgent.process(
+                final Response response = topologyAgent.process(
                         code,
                         data,
                         query,
                         GET);
-                code = response.code;
-                data = response.data;
+                code = response.getCode();
+                data = response.getData();
             }
 
-            try {
-                http.sendResponseHeaders(code, code == HttpStatus.SC_OK ? data.length : 0);
-                if (code == HttpStatus.SC_OK) http.getResponseBody().write(data);
-                http.close();
-
-            } catch (Exception e) {
-                http.close();
-            }
+            sendResponse(http, query.getFull(), data, code);
         }
     }
 
     private void putQuery(@NotNull final HttpExchange http,
                           @NotNull final Query query) {
-        final byte data[] = DataBase.readByteArray(http.getRequestBody());
-        final boolean created = this.dataBase.upsert(query.id, data);
-        final Response response;
+        final byte data[] = Util.readByteArray(http.getRequestBody());
+        final boolean created = this.dataBase.upsert(query.getId(), data);
         int code = created ? HttpStatus.SC_CREATED : HttpStatus.SC_INTERNAL_SERVER_ERROR;
 
         if (!http.getRequestHeaders().containsKey(REPLICA)) {
-            response = topologyAgent.process(
+            final Response response = topologyAgent.process(
                     code,
                     data,
                     query,
                     PUT);
-            code = response.code;
+            code = response.getCode();
         }
 
-        try {
-            http.sendResponseHeaders(code, 0);
-            http.close();
-
-        } catch (Exception e) {
-            http.close();
-        }
+        sendResponse(http, query.getFull(), code);
     }
 
     private void deleteQuery(@NotNull final HttpExchange http,
                              @NotNull final Query query) {
-        this.dataBase.remove(query.id);
-        final Response response;
+        this.dataBase.remove(query.getId());
         int code = HttpStatus.SC_ACCEPTED;
 
         if (!http.getRequestHeaders().containsKey(REPLICA)) {
-            response = topologyAgent.process(
+            final Response response = topologyAgent.process(
                     code,
                     null,
                     query,
                     DELETE);
 
-            code = response.code;
+            code = response.getCode();
         }
 
-        try {
-            http.sendResponseHeaders(code, 0);
-            http.close();
-
-        } catch (Exception e) {
-            http.close();
-        }
+        sendResponse(http, query.getFull(), code);
     }
 
     private void unknownQuery(@NotNull final HttpExchange http) {
+        final String response = http.getRequestMethod() + " not allowed!";
+        final int code = HttpStatus.SC_METHOD_NOT_ALLOWED;
+        sendResponse(http, "unknown", response.getBytes(), code);
+    }
+
+    private void sendResponse(@NotNull final HttpExchange http,
+                              @NotNull final String query,
+                              final int code) {
+        sendResponse(http, query, null, code);
+    }
+
+    private void sendResponse(@NotNull final HttpExchange http,
+                              @NotNull final String query,
+                              @Nullable final byte[] data,
+                              final int code) {
         try {
-            final String response = http.getRequestMethod() + " not allowed!";
-            http.sendResponseHeaders(HttpStatus.SC_METHOD_NOT_ALLOWED, response.length());
-            http.getResponseBody().write(response.getBytes());
-            http.close();
+            final boolean withData = data != null;
+            http.sendResponseHeaders(code, withData ? data.length : 0);
+            if (withData) http.getResponseBody().write(data);
 
         } catch (Exception e) {
+            System.err.println("Invalid request: " + query + ": " + e.getMessage());
+        } finally {
             http.close();
         }
     }

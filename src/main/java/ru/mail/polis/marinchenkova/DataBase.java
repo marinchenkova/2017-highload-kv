@@ -2,6 +2,7 @@ package ru.mail.polis.marinchenkova;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import ru.mail.polis.marinchenkova.util.Util;
 
 import java.io.*;
 
@@ -67,11 +68,11 @@ public class DataBase implements IDataBase{
     }
 
     public String[] getMissedWrites() {
-        final String[] missedWrites = new String[getMissedWritesSize()];
         final File[] missedWriteFiles = this.missedWritePath.listFiles();
-        for (int i = 0; i < missedWriteFiles.length; i++) {
-            missedWrites[i] = missedWriteFiles[i].getName();
-        }
+        final String[] missedWrites = new String[missedWriteFiles.length];
+            for (int i = 0; i < missedWriteFiles.length; i++) {
+                missedWrites[i] = missedWriteFiles[i].getName();
+            }
         return missedWrites;
     }
 
@@ -83,19 +84,16 @@ public class DataBase implements IDataBase{
         return remove(key, true);
     }
 
-    public int getMissedWritesSize() {
-        return missedWritePath.listFiles().length;
-    }
-
     @Nullable
     private byte[] get(@NotNull final String key,
                        final boolean missedWrite) {
         final File file = getFile(key, missedWrite);
 
         try (InputStream fileInputStream = new FileInputStream(file)) {
-            return readByteArray(fileInputStream);
+            return Util.readByteArray(fileInputStream);
 
         } catch (Exception e) {
+            System.err.println("Database error: " + e.getMessage());
             return null;
         }
     }
@@ -109,6 +107,7 @@ public class DataBase implements IDataBase{
             fileOutputStream.write(data);
             return true;
         } catch (Exception e) {
+            System.err.println("Database error: " + e.getMessage());
             return false;
         }
     }
@@ -117,22 +116,5 @@ public class DataBase implements IDataBase{
                            final boolean missedWrite) {
         final File file = getFile(key, missedWrite);
         return file.delete();
-    }
-
-    @Nullable
-    public static byte[] readByteArray(@NotNull final InputStream in) {
-        final byte buffer[] = new byte[1024];
-        final ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-        try {
-            int j;
-            while ((j = in.read(buffer)) != -1) {
-                out.write(buffer, 0, j);
-            }
-            out.flush();
-            return out.toByteArray();
-        } catch (Exception e) {
-            return null;
-        }
     }
 }

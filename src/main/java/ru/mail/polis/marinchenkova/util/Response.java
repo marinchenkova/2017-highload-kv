@@ -13,8 +13,8 @@ import static ru.mail.polis.marinchenkova.MVService.PUT;
  */
 public class Response {
     @Nullable
-    public final byte[] data;
-    public final int code;
+    private final byte[] data;
+    private final int code;
 
     public Response(final int code,
                     @Nullable final byte[] data) {
@@ -55,4 +55,12 @@ public class Response {
         }
     }
 
+    @Nullable
+    public byte[] getData() {
+        return data;
+    }
+
+    public int getCode() {
+        return code;
+    }
 }

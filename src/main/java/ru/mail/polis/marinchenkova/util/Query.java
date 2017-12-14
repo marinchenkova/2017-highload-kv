@@ -1,5 +1,6 @@
 package ru.mail.polis.marinchenkova.util;
 
+import org.apache.http.HttpStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.regex.Matcher;
@@ -10,16 +11,13 @@ import java.util.regex.Pattern;
  */
 public class Query {
 
-    public final static String MSG_NOT_FOUND = "not found";
-    public final static String MSG_BAD_REQUEST = "bad request";
-
     private final static Pattern QUERY = Pattern.compile("id=([\\w]*)(&replicas=(\\d*)/(\\d*))?");
     private final static Pattern QUERY_FOR_FILE = Pattern.compile("id=([\\w]*)(&replicas=(\\d*)-(\\d*))?");
 
-    public final String full;
-    public final String id;
-    public final int ack;
-    public final int from;
+    private final String full;
+    private final String id;
+    private final int ack;
+    private final int from;
     
     public Query(@NotNull final String query,
                  final int size) throws IllegalArgumentException {
@@ -37,8 +35,6 @@ public class Query {
             this.ack = 0;
             this.from = 0;
         }
-
-        checkCorrect();
     }
 
     public Query changeParams(final int newAck,
@@ -51,15 +47,21 @@ public class Query {
         return "id=" + this.id + "&replicas=" + this.ack + "-" + this.from;
     }
 
-    private void checkCorrect() throws IllegalArgumentException {
+    public int checkCorrect() {
         if (this.id == null) {
-            throw new IllegalArgumentException(MSG_NOT_FOUND);
+            return HttpStatus.SC_NOT_FOUND;
         } else if (this.id.isEmpty() || this.ack == 0 || this.from == 0 || this.ack > this.from) {
-            throw new IllegalArgumentException(MSG_BAD_REQUEST);
-        }
+            return  HttpStatus.SC_BAD_REQUEST;
+        } return HttpStatus.SC_OK;
     }
 
-    private int quorum(final int from) {
-        return from / 2 + 1;
-    }
+    public String getFull() { return this.full; }
+
+    public String getId() { return this.id; }
+
+    public int getAck() { return this.ack; }
+
+    public int getFrom() { return this.from; }
+
+    private int quorum(final int from) { return from / 2 + 1; }
 }

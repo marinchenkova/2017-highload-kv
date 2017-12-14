@@ -25,12 +25,14 @@ public class TopologyAgent {
 
     private final static int CONNECT_TIMEOUT = 100;
 
-    private final static Pattern LOCALHOST = Pattern.compile("http://localhost:(\\d*)");
+    private final static Pattern LOCALHOST = Pattern.compile("http://127\\.0\\.0\\.1:(\\d*)");
 
     @NotNull
     private final String local;
     @NotNull
     private final Set<String> topology;
+    @NotNull
+    private final Set<String> topologyGlobal;
     @NotNull
     private final DataBase dataBase;
     @NotNull
@@ -41,6 +43,7 @@ public class TopologyAgent {
                          final int port) {
         this.size = topology.size();
         this.topology = topology;
+        this.topologyGlobal = getGlobal();
         this.dataBase = (DataBase) dataBase;
         this.local = getLocal(port);
     }
@@ -57,25 +60,25 @@ public class TopologyAgent {
                              @NotNull final String method) {
         int responsesNum = responseNumInit(masterResponseCode, method);
         int failedConnectionsNum = 0;
+        final int ack = query.getAck();
+        final int from = query.getFrom();
         final Response response;
 
         if (this.size == 1) response = new Response(masterResponseCode, data);
         else {
-            for (String addr : this.topology) {
-                if (query.from - failedConnectionsNum < query.ack) break;
-                if (method.equals(PUT) && responsesNum >= query.from) break;
-
-                final String globalAddr = addr.replace("localhost", "127.0.0.1");
-                if (globalAddr.equals(this.local)) continue;
+            for (String addr : this.topologyGlobal) {
+                if (from - failedConnectionsNum < ack) break;
+                if (method.equals(PUT) && responsesNum >= from) break;
+                if (addr.equals(this.local)) continue;
 
                 try {
-                    final URL urlStatus = new URL(globalAddr + STATUS);
+                    final URL urlStatus = new URL(addr + STATUS);
                     final HttpURLConnection connection = (HttpURLConnection) urlStatus.openConnection();
                     connection.setConnectTimeout(CONNECT_TIMEOUT);
                     connection.connect();
 
                     if (connection.getResponseCode() == HttpStatus.SC_OK) {
-                        final URL urlEntity = new URL(globalAddr + ENTITY + "?" + query.full);
+                        final URL urlEntity = new URL(addr + ENTITY + "?" + query.getFull());
                         final HttpURLConnection request = (HttpURLConnection) urlEntity.openConnection();
                         request.setConnectTimeout(CONNECT_TIMEOUT);
                         request.setRequestMethod(method);
@@ -95,13 +98,13 @@ public class TopologyAgent {
                 }
             }
 
-            if (method.equals(PUT) && responsesNum < query.from) {
-                addMissedWrite(query, query.from - responsesNum);
+            if (method.equals(PUT) && responsesNum < from) {
+                addMissedWrite(query, from - responsesNum);
             }
 
-            if (method.equals(GET) && responsesNum < query.ack && this.size - failedConnectionsNum >= query.ack) {
+            if (method.equals(GET) && responsesNum < ack && this.size - failedConnectionsNum >= ack) {
                 response = new Response(HttpStatus.SC_NOT_FOUND, null);
-            } else if (responsesNum < query.ack) {
+            } else if (responsesNum < ack) {
                 response = new Response(HttpStatus.SC_GATEWAY_TIMEOUT, null);
             } else response = new Response(successResponseCode(method), data);
         }
@@ -109,83 +112,30 @@ public class TopologyAgent {
         return response;
     }
 
+
     private int processMethod(@NotNull final String method,
-                              @NotNull final HttpURLConnection request,
+                              @NotNull final HttpURLConnection connection,
                               @Nullable final byte[] data) {
-        int responsesNum = 0;
-        switch (method) {
-            case GET:
-                final Response get = get(request);
-                if (get.code == HttpStatus.SC_OK) responsesNum++;
-                break;
-
-            case PUT:
-                final Response put = put(request, data);
-                if (put.code == HttpStatus.SC_CREATED) responsesNum++;
-                break;
-
-            case DELETE:
-                final Response delete = delete(request);
-                if (delete.code == HttpStatus.SC_ACCEPTED) responsesNum++;
-                break;
-        }
-        return responsesNum;
-    }
-
-    @NotNull
-    private Response get(@NotNull final HttpURLConnection connection) {
         try {
-            connection.connect();
-            final int code = connection.getResponseCode();
-            connection.disconnect();
-            final byte data[];
-
-            if (code == HttpStatus.SC_OK) {
-                connection.setDoInput(true);
-                final InputStream in = new DataInputStream(connection.getInputStream());
-                data = DataBase.readByteArray(in);
-                in.close();
-            } else data = null;
-
-            return new Response(code, data);
-
-        } catch (IOException e) {
-            return new Response(HttpStatus.SC_NOT_FOUND, null);
-        }
-    }
-
-    @NotNull
-    private Response put(@NotNull final HttpURLConnection connection,
-                         @NotNull final byte[] data) {
-        try {
-            connection.setDoOutput(true);
-            OutputStream out = new DataOutputStream(connection.getOutputStream());
-            out.write(data);
-            out.flush();
+            if (method.equals(PUT)) {
+                connection.setDoOutput(true);
+                OutputStream out = new DataOutputStream(connection.getOutputStream());
+                out.write(data);
+                out.flush();
+            }
 
             connection.connect();
             final int code = connection.getResponseCode();
             connection.disconnect();
 
-            return new Response(code, null);
+            if (code == Response.successResponseCode(method)) return 1;
 
         } catch (IOException e) {
-            return new Response(HttpStatus.SC_METHOD_FAILURE, null);
+            System.err.println("Inner request error: " + e.getMessage());
+            return 0;
         }
-    }
 
-    @NotNull
-    private Response delete(@NotNull final HttpURLConnection connection) {
-        try {
-            connection.connect();
-            final int code = connection.getResponseCode();
-            connection.disconnect();
-
-            return new Response(code, null);
-
-        } catch (IOException e) {
-            return new Response(HttpStatus.SC_METHOD_FAILURE, null);
-        }
+        return 0;
     }
 
     private void requestMissedWrites() {
@@ -203,7 +153,8 @@ public class TopologyAgent {
                                 final int left) {
         final Query missed = query.changeParams(left, left, this.size);
         this.missedWrites.add(missed);
-        this.dataBase.upsertMissedWrite(missed.getQueryForFile());
+        final boolean upserted = this.dataBase.upsertMissedWrite(missed.getQueryForFile());
+        if (!upserted) this.dataBase.upsertMissedWrite(missed.getQueryForFile());
     }
 
     private void deleteMissedWrite(@NotNull final Query query) {
@@ -223,7 +174,7 @@ public class TopologyAgent {
         if (this.missedWrites.size() > 0) {
             for (int i = 0; i < this.missedWrites.size(); i++) {
                 final Query missed = this.missedWrites.poll();
-                final byte[] dataCheckMaster = this.dataBase.get(missed.id);
+                final byte[] dataCheckMaster = this.dataBase.get(missed.getId());
 
                 if (dataCheckMaster != null) {
                     final Response putResponse = process(
@@ -232,7 +183,7 @@ public class TopologyAgent {
                             missed,
                             PUT
                     );
-                    if (putResponse.code == HttpStatus.SC_CREATED) {
+                    if (putResponse.getCode() == HttpStatus.SC_CREATED) {
                         deleteMissedWrite(missed);
                     }
                 }
@@ -240,11 +191,17 @@ public class TopologyAgent {
         }
     }
 
-    private String getLocal(final int port) {
+    private Set<String> getGlobal() {
+        final Set<String> global = new HashSet<>();
         for (String addr : topology) {
-            if (getPort(addr) == port) {
-                return addr.replace("localhost", "127.0.0.1");
-            }
+            global.add(addr.replace("localhost", "127.0.0.1"));
+        }
+        return global;
+    }
+
+    private String getLocal(final int port) {
+        for (String addr : topologyGlobal) {
+            if (getPort(addr) == port) return addr;
         }
         return "";
     }

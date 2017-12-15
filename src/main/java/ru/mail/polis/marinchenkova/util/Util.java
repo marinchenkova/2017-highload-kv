@@ -5,6 +5,10 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * @author Marinchenko V. A.
@@ -20,5 +24,12 @@ public class Util {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    @NotNull
+    public static Set<String> parseMissedWriteAddrs(@Nullable final byte[] data) {
+        final String whole = new String(data == null ? new byte[]{} : data);
+        final String addrs[] = whole.split("\\?");
+        return new HashSet<>(Arrays.asList(addrs));
     }
 }

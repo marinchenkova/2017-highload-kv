@@ -2,9 +2,14 @@ package ru.mail.polis.marinchenkova;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import ru.mail.polis.marinchenkova.util.Query;
 import ru.mail.polis.marinchenkova.util.Util;
 
 import java.io.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * @author Marinchenko V. A.
@@ -67,17 +72,23 @@ public class DataBase implements IDataBase{
         return dir;
     }
 
-    public String[] getMissedWrites() {
+    public Map<Query, Set<String>> getMissedWrites(final int size) {
         final File[] missedWriteFiles = this.missedWritePath.listFiles();
-        final String[] missedWrites = new String[missedWriteFiles.length];
-            for (int i = 0; i < missedWriteFiles.length; i++) {
-                missedWrites[i] = missedWriteFiles[i].getName();
-            }
+        final Map<Query, Set<String>> missedWrites = new HashMap<>();
+        for (File write : missedWriteFiles) {
+            final String id = write.getName();
+            final Set<String> addrs = Util.parseMissedWriteAddrs(get(id, true));
+            missedWrites.put(new Query(id, size), addrs);
+        }
         return missedWrites;
     }
 
-    public boolean upsertMissedWrite(@NotNull final String key) {
-        return upsert(key, new byte[]{}, true);
+    public boolean upsertMissedWrite(@NotNull final String key,
+                                     @NotNull final Set<String> failed) {
+        final StringBuilder whole = new StringBuilder();
+        for (String addr : failed) whole.append(addr).append("&");
+        final String addrs = whole.toString();
+        return upsert(key, addrs.getBytes(), true);
     }
 
     public boolean removeMissedWrite(@NotNull final String key) {

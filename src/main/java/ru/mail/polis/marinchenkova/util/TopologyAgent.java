@@ -24,7 +24,6 @@ public class TopologyAgent {
     public final int size;
 
     private final static int CONNECT_TIMEOUT = 100;
-
     private final static Pattern LOCALHOST = Pattern.compile("http://127\\.0\\.0\\.1:(\\d*)");
 
     @NotNull
@@ -34,9 +33,9 @@ public class TopologyAgent {
     @NotNull
     private final Set<String> topologyGlobal;
     @NotNull
-    private final DataBase dataBase;
+    private final IDataBase dataBase;
     @NotNull
-    private final Deque<Query> missedWrites = new ArrayDeque<>();
+    private final Map<Query, Set<String>> missedWrites = new HashMap<>();
 
     public TopologyAgent(@NotNull final Set<String> topology,
                          @NotNull final IDataBase dataBase,
@@ -44,7 +43,7 @@ public class TopologyAgent {
         this.size = topology.size();
         this.topology = topology;
         this.topologyGlobal = getGlobal();
-        this.dataBase = (DataBase) dataBase;
+        this.dataBase = dataBase;
         this.local = getLocal(port);
     }
 
@@ -55,9 +54,24 @@ public class TopologyAgent {
 
     @NotNull
     public Response process(final int masterResponseCode,
-                             @Nullable final byte[] data,
-                             @NotNull final Query query,
-                             @NotNull final String method) {
+                            @Nullable final byte[] data,
+                            @NotNull final Query query,
+                            @NotNull final String method) {
+        return process(
+                masterResponseCode,
+                data,
+                query,
+                method,
+                this.topologyGlobal);
+    }
+
+
+    @NotNull
+    private Response process(final int masterResponseCode,
+                            @Nullable final byte[] data,
+                            @NotNull final Query query,
+                            @NotNull final String method,
+                            @NotNull final Set<String> addrs) {
         int responsesNum = responseNumInit(masterResponseCode, method);
         int failedConnectionsNum = 0;
         final int ack = query.getAck();
@@ -66,7 +80,8 @@ public class TopologyAgent {
 
         if (this.size == 1) response = new Response(masterResponseCode, data);
         else {
-            for (String addr : this.topologyGlobal) {
+            final Set<String> failedAddrs = new HashSet<>();
+            for (String addr : addrs) {
                 if (from - failedConnectionsNum < ack) break;
                 if (method.equals(PUT) && responsesNum >= from) break;
                 if (addr.equals(this.local)) continue;
@@ -91,15 +106,18 @@ public class TopologyAgent {
 
                     } else {
                         failedConnectionsNum++;
+                        failedAddrs.add(addr);
                     }
 
                 } catch (Exception e) {
+                    System.err.println("Inner connection to " + addr + " failed: " + e.getMessage());
                     failedConnectionsNum++;
+                    failedAddrs.add(addr);
                 }
             }
 
             if (method.equals(PUT) && responsesNum < from) {
-                addMissedWrite(query, from - responsesNum);
+                addMissedWrite(query, failedAddrs, from - responsesNum);
             }
 
             if (method.equals(GET) && responsesNum < ack && this.size - failedConnectionsNum >= ack) {
@@ -120,7 +138,7 @@ public class TopologyAgent {
             if (method.equals(PUT)) {
                 connection.setDoOutput(true);
                 OutputStream out = new DataOutputStream(connection.getOutputStream());
-                out.write(data);
+                out.write(data == null ? new byte[]{} : data);
                 out.flush();
             }
 
@@ -150,45 +168,36 @@ public class TopologyAgent {
     }
 
     private void addMissedWrite(@NotNull final Query query,
+                                @NotNull Set<String> failed,
                                 final int left) {
         final Query missed = query.changeParams(left, left, this.size);
-        this.missedWrites.add(missed);
-        final boolean upserted = this.dataBase.upsertMissedWrite(missed.getQueryForFile());
-        if (!upserted) this.dataBase.upsertMissedWrite(missed.getQueryForFile());
+        this.missedWrites.put(missed, failed);
+        this.dataBase.upsertMissedWrite(missed.getQueryForFile(), failed);
     }
 
     private void deleteMissedWrite(@NotNull final Query query) {
+        this.missedWrites.remove(query);
         this.dataBase.removeMissedWrite(query.getQueryForFile());
     }
 
     private void initMissedWrites() {
-        final String[] fullQueries = this.dataBase.getMissedWrites();
-        final List<Query> queries = new ArrayList<>();
-        for (String fullQuery : fullQueries) {
-            queries.add(new Query(fullQuery, this.size));
-        }
-        missedWrites.addAll(queries);
+        this.missedWrites.putAll(this.dataBase.getMissedWrites(this.size));
     }
 
     public void sendMissedWrites() {
-        if (this.missedWrites.size() > 0) {
-            for (int i = 0; i < this.missedWrites.size(); i++) {
-                final Query missed = this.missedWrites.poll();
-                final byte[] dataCheckMaster = this.dataBase.get(missed.getId());
-
-                if (dataCheckMaster != null) {
-                    final Response putResponse = process(
-                            HttpStatus.SC_INTERNAL_SERVER_ERROR,
-                            dataCheckMaster,
-                            missed,
-                            PUT
-                    );
-                    if (putResponse.getCode() == HttpStatus.SC_CREATED) {
-                        deleteMissedWrite(missed);
-                    }
-                }
+        missedWrites.forEach((missed, addrs) -> {
+            final byte[] dataCheckMaster = this.dataBase.get(missed.getId());
+            if (dataCheckMaster != null) {
+                final Response putResponse = process(
+                        HttpStatus.SC_INTERNAL_SERVER_ERROR,
+                        dataCheckMaster,
+                        missed,
+                        PUT,
+                        addrs
+                );
+                if (putResponse.getCode() == HttpStatus.SC_CREATED) deleteMissedWrite(missed);
             }
-        }
+        });
     }
 
     private Set<String> getGlobal() {
